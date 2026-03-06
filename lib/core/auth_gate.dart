@@ -3,7 +3,7 @@ import '../../core/services/api_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../features/auth/views/login_view.dart';
 import '../../features/auth/views/onboarding_view.dart';
-import '../../features/home/views/home_view.dart';
+import '../../features/navigation/main_screen.dart';
 
 enum AuthDestination { home, onboarding, login }
 
@@ -79,7 +79,7 @@ class AuthGate extends StatelessWidget {
         
         switch (destination) {
           case AuthDestination.home:
-            return const HomeView();
+            return const MainScreen();
           case AuthDestination.onboarding:
             return const OnboardingView();
           case AuthDestination.login:
