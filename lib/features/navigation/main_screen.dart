@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../home/views/home_view.dart';
+import '../home/viewmodels/home_viewmodel.dart';
 import '../catalog/views/catalog_view.dart';
 import '../post/views/post_view.dart';
 import '../favorites/views/favorites_view.dart';
@@ -16,18 +18,22 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeView(),
-    CatalogView(),
-    PostView(),
-    FavoritesView(),
-    ProfileView(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          ChangeNotifierProvider(
+            create: (_) => HomeViewModel(),
+            child: const HomeView(),
+          ),
+          const CatalogView(),
+          const PostView(),
+          const FavoritesView(),
+          const ProfileView(),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
