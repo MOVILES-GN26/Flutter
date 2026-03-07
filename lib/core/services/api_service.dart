@@ -70,4 +70,54 @@ class ApiService {
       return null;
     }
   }
+
+  /// Request a password reset email
+  Future<bool> forgotPassword(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.forgotPasswordEndpoint}'),
+        headers: ApiConfig.defaultHeaders,
+        body: jsonEncode({'email': email}),
+      ).timeout(ApiConfig.connectionTimeout);
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Registro de nuevo usuario
+  Future<Map<String, dynamic>?> register({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String major,
+    required String password,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.registerEndpoint}'),
+        headers: ApiConfig.defaultHeaders,
+        body: jsonEncode({
+          'first_name': firstName,
+          'last_name': lastName,
+          'email': email,
+          'major': major,
+          'password': password,
+        }),
+      ).timeout(ApiConfig.connectionTimeout);
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body);
+      }
+      // Return error message from API if available
+      try {
+        return jsonDecode(response.body);
+      } catch (_) {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
 }

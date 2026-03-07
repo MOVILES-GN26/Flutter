@@ -2,19 +2,31 @@
 class AuthUser {
   final String id;
   final String email;
-  final String? name;
+  final String? firstName;
+  final String? lastName;
+  final String? major;
   
   AuthUser({
     required this.id,
     required this.email,
-    this.name,
+    this.firstName,
+    this.lastName,
+    this.major,
   });
+
+  /// Returns the full display name, falling back gracefully if parts are missing
+  String get fullName {
+    final parts = [firstName, lastName].where((p) => p != null && p.isNotEmpty);
+    return parts.isNotEmpty ? parts.join(' ') : email;
+  }
   
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     return AuthUser(
       id: json['id'] ?? '',
       email: json['email'] ?? '',
-      name: json['name'],
+      firstName: json['first_name'],
+      lastName: json['last_name'],
+      major: json['major'],
     );
   }
   
@@ -22,7 +34,9 @@ class AuthUser {
     return {
       'id': id,
       'email': email,
-      'name': name,
+      'first_name': firstName,
+      'last_name': lastName,
+      'major': major,
     };
   }
 }
