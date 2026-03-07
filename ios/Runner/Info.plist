@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>AndesHub needs camera access to take photos of items you want to sell.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>AndesHub needs photo library access to select photos of items you want to sell.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>AndesHub uses your location to show products available near you on campus.</string>
 </dict>
 </plist>

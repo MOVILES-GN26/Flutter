@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'forgot_password_view.dart';
@@ -84,6 +85,10 @@ class _LoginViewState extends State<LoginView> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       maxLength: 100,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.deny(
+                            RegExp(r'[\$!#%^&*()+=\[\]{}|\\;:"<>,?/~`]')),
+                      ],
                       decoration: const InputDecoration(
                         hintText: 'Enter your email',
                         counterText: '',
@@ -116,7 +121,7 @@ class _LoginViewState extends State<LoginView> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
-                      maxLength: 128,
+                      maxLength: 100,
                       decoration: InputDecoration(
                         hintText: 'Enter your password',
                         counterText: '',
