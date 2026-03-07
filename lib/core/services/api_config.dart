@@ -8,6 +8,7 @@ class ApiConfig {
   static const String refreshEndpoint = '/refresh';
   static const String loginEndpoint = '/auth/login';
   static const String registerEndpoint = '/auth/register';
+  static const String forgotPasswordEndpoint = '/auth/forgot-password';
   
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);
