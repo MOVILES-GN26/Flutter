@@ -92,11 +92,12 @@ class _LoginViewState extends State<LoginView> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Email is required';
                         }
-                        if (!value.contains('@') || !value.contains('.')) {
-                          return 'Enter a valid email (e.g. user@uniandes.edu.co)';
+                        if (!value.trim().endsWith('@uniandes.edu.co')) {
+                          return 'Must be a @uniandes.edu.co email';
                         }
-                        if (value.trim().length < 5) {
-                          return 'Email is too short';
+                        final username = value.trim().split('@').first;
+                        if (username.isEmpty) {
+                          return 'Enter your username before @uniandes.edu.co';
                         }
                         return null;
                       },
