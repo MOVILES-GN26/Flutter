@@ -1,7 +1,7 @@
 /// Configuración central del API
 class ApiConfig {
   // TODO: Cambiar a la URL real cuando el backend esté desplegado
-  static const String baseUrl = 'https://api.example.com';
+  static const String baseUrl = 'http://localhost:3000';
   
   // Endpoints disponibles
   static const String homeEndpoint = '/home';
