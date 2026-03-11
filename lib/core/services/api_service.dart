@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
 import 'storage_service.dart';
@@ -71,6 +72,144 @@ class ApiService {
       return null;
     }
   }
+
+
+  /// Request a password reset email
+  Future<bool> forgotPassword(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.forgotPasswordEndpoint}'),
+        headers: ApiConfig.defaultHeaders,
+        body: jsonEncode({'email': email}),
+      ).timeout(ApiConfig.connectionTimeout);
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Registro de nuevo usuario
+  Future<Map<String, dynamic>?> register({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String major,
+    required String password,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.registerEndpoint}'),
+        headers: ApiConfig.defaultHeaders,
+        body: jsonEncode({
+          'first_name': firstName,
+          'last_name': lastName,
+          'email': email,
+          'major': major,
+          'password': password,
+        }),
+      ).timeout(ApiConfig.connectionTimeout);
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body);
+      }
+      // Return error message from API if available
+      try {
+        return jsonDecode(response.body);
+      } catch (_) {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Fetch the list of products from the catalog.
+  /// Supports optional query parameters for search and filtering.
+  Future<List<Map<String, dynamic>>> getProducts({
+    String? search,
+    String? category,
+    String? condition,
+    String? priceSort,
+  }) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      final queryParams = <String, String>{};
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+      if (category != null && category.isNotEmpty) queryParams['category'] = category;
+      if (condition != null && condition.isNotEmpty) queryParams['condition'] = condition;
+      if (priceSort != null && priceSort.isNotEmpty) queryParams['price_sort'] = priceSort;
+
+      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productsEndpoint}')
+          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+
+      final response = await http.get(
+        uri,
+        headers: token != null
+            ? ApiConfig.authHeaders(token)
+            : ApiConfig.defaultHeaders,
+      ).timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return List<Map<String, dynamic>>.from(data);
+        }
+        if (data is Map && data['items'] is List) {
+          return List<Map<String, dynamic>>.from(data['items']);
+        }
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Create a new marketplace listing, uploading images as multipart.
+  Future<bool> createPost({
+    required String title,
+    required String description,
+    required String category,
+    required String buildingLocation,
+    required double price,
+    required String condition,
+    required List<File> images,
+  }) async {
+    try {
+      final token = await _storageService.getAccessToken();
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.postsEndpoint}'),
+      );
+
+      if (token != null) {
+        request.headers.addAll(ApiConfig.authHeaders(token));
+      }
+
+      request.fields['title'] = title;
+      request.fields['description'] = description;
+      request.fields['category'] = category;
+      request.fields['building_location'] = buildingLocation;
+      request.fields['price'] = price.toString();
+      request.fields['condition'] = condition;
+
+      for (final image in images) {
+        request.files.add(
+          await http.MultipartFile.fromPath('images', image.path),
+        );
+      }
+
+      final streamedResponse = await request.send().timeout(
+            ApiConfig.connectionTimeout,
+          );
+
+      return streamedResponse.statusCode == 200 ||
+          streamedResponse.statusCode == 201;
+    } catch (e) {
+      return false;
+    }
+
   
   /// Obtener items del home (Recently Added)
   Future<List<HomeItem>> getHomeItems() async {
@@ -132,5 +271,6 @@ class ApiService {
         description: 'Apartment 2 blocks from campus',
       ),
     ];
+
   }
 }
