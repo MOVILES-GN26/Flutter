@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'core/auth_gate.dart';
 import 'features/auth/viewmodels/auth_viewmodel.dart';
+import 'features/catalog/viewmodels/catalog_viewmodel.dart';
+import 'features/post/viewmodels/post_viewmodel.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,12 +18,14 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
+        ChangeNotifierProvider(create: (_) => CatalogViewModel()),
+        ChangeNotifierProvider(create: (_) => PostViewModel()),
       ],
       child: MaterialApp(
         title: 'AndesHub',
         theme: ThemeData(
           useMaterial3: true,
-          scaffoldBackgroundColor: Colors.white,
+          scaffoldBackgroundColor: const Color(0xFFFCFAF7),
           textTheme: GoogleFonts.plusJakartaSansTextTheme(),
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFFD4C84A),

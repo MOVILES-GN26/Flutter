@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/uniandes_majors.dart';
 import '../viewmodels/auth_viewmodel.dart';
@@ -143,6 +144,10 @@ class _RegisterViewState extends State<RegisterView> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       maxLength: 100,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.deny(
+                            RegExp(r'[\$!#%^&*()+=\[\]{}|\\;:"<>,?/~`]')),
+                      ],
                       decoration: const InputDecoration(
                         hintText: 'University Email (@uniandes.edu.co)',
                         counterText: '',
@@ -184,7 +189,7 @@ class _RegisterViewState extends State<RegisterView> {
                         return TextFormField(
                           controller: controller,
                           focusNode: focusNode,
-                          maxLength: 100,
+                          maxLength: 50,
                           decoration: const InputDecoration(
                             hintText: 'Major',
                             counterText: '',
@@ -245,7 +250,7 @@ class _RegisterViewState extends State<RegisterView> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
-                      maxLength: 128,
+                      maxLength: 100,
                       decoration: InputDecoration(
                         hintText: 'Password',
                         counterText: '',

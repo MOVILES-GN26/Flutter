@@ -9,6 +9,9 @@ class ApiConfig {
   static const String loginEndpoint = '/auth/login';
   static const String registerEndpoint = '/auth/register';
   static const String forgotPasswordEndpoint = '/auth/forgot-password';
+  static const String postsEndpoint = '/posts';
+  static const String productsEndpoint = '/products';
+  static const String usersEndpoint = '/users';
   
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);

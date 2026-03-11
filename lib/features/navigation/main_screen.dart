@@ -19,7 +19,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = const [
     HomeView(),
     CatalogView(),
-    PostView(),
+    SizedBox.shrink(), // Post opens as a modal route, not a tab
     FavoritesView(),
     ProfileView(),
   ];
@@ -31,6 +31,16 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
+          if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                fullscreenDialog: true,
+                builder: (_) => const PostView(),
+              ),
+            );
+            return;
+          }
           setState(() {
             _currentIndex = index;
           });
