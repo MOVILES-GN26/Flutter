@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/uniandes_majors.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import '../../navigation/main_screen.dart';
+import 'login_view.dart';
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -19,9 +21,30 @@ class _RegisterViewState extends State<RegisterView> {
   final _passwordController = TextEditingController();
   String? _selectedMajor;
   bool _obscurePassword = true;
+  late AuthViewModel _authViewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _authViewModel = context.read<AuthViewModel>();
+      _authViewModel.addListener(_onAuthChanged);
+    });
+  }
+
+  void _onAuthChanged() {
+    if (!mounted) return;
+    if (_authViewModel.status == AuthStatus.authenticated) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
+    }
+  }
 
   @override
   void dispose() {
+    _authViewModel.removeListener(_onAuthChanged);
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
@@ -327,7 +350,18 @@ class _RegisterViewState extends State<RegisterView> {
                     // Login link
                     Center(
                       child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () {
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          } else {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginView(),
+                              ),
+                            );
+                          }
+                        },
                         child: RichText(
                           text: const TextSpan(
                             text: 'Already have an account? ',

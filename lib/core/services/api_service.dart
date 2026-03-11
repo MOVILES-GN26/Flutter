@@ -63,11 +63,12 @@ class ApiService {
           'password': password,
         }),
       ).timeout(ApiConfig.connectionTimeout);
-      
-      if (response.statusCode == 200) {
+
+      try {
         return jsonDecode(response.body);
+      } catch (_) {
+        return null;
       }
-      return null;
     } catch (e) {
       return null;
     }
