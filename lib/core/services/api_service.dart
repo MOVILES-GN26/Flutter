@@ -209,6 +209,7 @@ class ApiService {
     } catch (e) {
       return false;
     }
+  }
 
   
   /// Obtener items del home (Recently Added)
@@ -274,3 +275,4 @@ class ApiService {
 
   }
 }
+
