@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../catalog/views/product_detail_view.dart';
+import '../../post/models/post_item.dart';
 import '../viewmodels/home_viewmodel.dart';
 
 /// Vista de Home
@@ -214,14 +216,14 @@ class _HomeViewState extends State<HomeView> {
   
   Widget _buildCategories() {
     final categories = [
-      {'icon': 'assets/icons/books_category.png', 'label': 'Books'},
-      {'icon': 'assets/icons/tech_category.png', 'label': 'Tech'},
-      {'icon': 'assets/icons/housing_category.png', 'label': 'Housing'},
-      {'icon': 'assets/icons/service_category.png', 'label': 'Services'},
-      {'icon': 'assets/icons/events_category.png', 'label': 'Events'},
-      {'icon': 'assets/icons/other_category.png', 'label': 'Other'},
+      {'icon': Icons.menu_book, 'label': 'Books'},
+      {'icon': Icons.devices, 'label': 'Tech'},
+      {'icon': Icons.home_work, 'label': 'Housing'},
+      {'icon': Icons.miscellaneous_services, 'label': 'Services'},
+      {'icon': Icons.event, 'label': 'Events'},
+      {'icon': Icons.category, 'label': 'Other'},
     ];
-    
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -240,8 +242,8 @@ class _HomeViewState extends State<HomeView> {
             runSpacing: 12,
             children: categories.map((category) {
               return _buildCategoryItem(
-                category['icon']!,
-                category['label']!,
+                category['icon']! as IconData,
+                category['label']! as String,
               );
             }).toList(),
           ),
@@ -249,12 +251,10 @@ class _HomeViewState extends State<HomeView> {
       ),
     );
   }
-  
-  Widget _buildCategoryItem(String iconPath, String label) {
+
+  Widget _buildCategoryItem(IconData icon, String label) {
     return InkWell(
-      onTap: () {
-        // TODO: Navegar a la categoría
-      },
+      onTap: () {},
       child: Container(
         width: (MediaQuery.of(context).size.width - 56) / 3,
         padding: const EdgeInsets.all(12),
@@ -272,14 +272,7 @@ class _HomeViewState extends State<HomeView> {
         ),
         child: Column(
           children: [
-            Image.asset(
-              iconPath,
-              width: 40,
-              height: 40,
-              errorBuilder: (context, error, stackTrace) {
-                return Icon(Icons.category, size: 40, color: Colors.grey);
-              },
-            ),
+            Icon(icon, size: 40, color: const Color(0xFF8B7E3B)),
             const SizedBox(height: 8),
             Text(
               label,
@@ -326,13 +319,19 @@ class _HomeViewState extends State<HomeView> {
     );
   }
   
-  Widget _buildRecentlyAddedItem(item) {
+  Widget _buildRecentlyAddedItem(PostItem item) {
+    final imageUrl = item.imageUrls.isNotEmpty ? item.imageUrls.first : '';
     return Container(
       width: 180,
       margin: const EdgeInsets.only(right: 16),
       child: InkWell(
         onTap: () {
-          // TODO: Navegar al detalle del item
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProductDetailView(item: item),
+            ),
+          );
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -345,21 +344,30 @@ class _HomeViewState extends State<HomeView> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  item.imageUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey.shade300,
-                      child: Icon(
-                        Icons.image,
-                        size: 60,
-                        color: Colors.grey.shade400,
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey.shade300,
+                            child: Icon(
+                              Icons.image,
+                              size: 60,
+                              color: Colors.grey.shade400,
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        color: Colors.grey.shade300,
+                        child: Icon(
+                          Icons.image,
+                          size: 60,
+                          color: Colors.grey.shade400,
+                        ),
                       ),
-                    );
-                  },
-                ),
               ),
             ),
             const SizedBox(height: 8),
