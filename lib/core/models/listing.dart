@@ -1,5 +1,5 @@
-/// Model representing a marketplace listing.
-class PostItem {
+/// Core domain model representing a marketplace listing.
+class Listing {
   final String? id;
   final String title;
   final String description;
@@ -14,7 +14,7 @@ class PostItem {
   final String? sellerAvatarUrl;
   final DateTime? createdAt;
 
-  PostItem({
+  Listing({
     this.id,
     required this.title,
     required this.description,
@@ -30,9 +30,9 @@ class PostItem {
     this.createdAt,
   });
 
-  factory PostItem.fromJson(Map<String, dynamic> json) {
+  factory Listing.fromJson(Map<String, dynamic> json) {
     final seller = json['seller'] as Map<String, dynamic>?;
-    return PostItem(
+    return Listing(
       id: json['id'],
       title: json['title'] ?? '',
       description: json['description'] ?? '',

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../catalog/views/product_detail_view.dart';
-import '../../post/models/post_item.dart';
+import '../../../core/models/listing.dart';
 import '../viewmodels/home_viewmodel.dart';
 
 /// Vista de Home
@@ -39,7 +39,8 @@ class _HomeViewState extends State<HomeView> {
       body: SafeArea(
         child: Consumer<HomeViewModel>(
           builder: (context, viewModel, child) {
-            if (viewModel.status == HomeStatus.loading) {
+            if (viewModel.status == HomeStatus.loading &&
+                viewModel.recentlyAddedItems.isEmpty) {
               return const Center(child: CircularProgressIndicator());
             }
             
@@ -309,7 +310,7 @@ class _HomeViewState extends State<HomeView> {
     );
   }
   
-  Widget _buildRecentlyAddedItem(PostItem item) {
+  Widget _buildRecentlyAddedItem(Listing item) {
     final imageUrl = item.imageUrls.isNotEmpty ? item.imageUrls.first : '';
     return Container(
       width: 180,

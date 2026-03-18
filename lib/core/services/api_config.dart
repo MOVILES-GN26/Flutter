@@ -1,7 +1,12 @@
+import 'dart:io';
+
 /// Configuración central del API
 class ApiConfig {
-  // TODO: Cambiar a la URL real cuando el backend esté desplegado
-  static const String baseUrl = 'http://localhost:3000';
+  // Cuando el backend esté desplegado, reemplazar con la URL de AWS.
+  static String get baseUrl {
+    if (Platform.isAndroid) return 'http://10.0.2.2:3000';
+    return 'http://localhost:3000';
+  }
   
   // Endpoints disponibles
   static const String homeEndpoint = '/home';

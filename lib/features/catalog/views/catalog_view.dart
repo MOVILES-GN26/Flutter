@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/post_categories.dart';
-import '../../post/models/post_item.dart';
+import '../../../core/models/listing.dart';
 import '../viewmodels/catalog_viewmodel.dart';
 import 'product_detail_view.dart';
 
@@ -744,7 +744,7 @@ class _FilterButton extends StatelessWidget {
 
 // ── Individual product card ──
 class _ProductCard extends StatelessWidget {
-  final PostItem item;
+  final Listing item;
   final VoidCallback onTap;
 
   const _ProductCard({required this.item, required this.onTap});

@@ -35,22 +35,18 @@ class AuthViewModel extends ChangeNotifier {
         if (response['refresh_token'] != null) {
           await _storageService.saveRefreshToken(response['refresh_token']);
         }
-        
+
         if (response['user'] != null) {
           _user = AuthUser.fromJson(response['user']);
         }
-        
+
         _status = AuthStatus.authenticated;
       } else {
-        // Use the API error message if available, otherwise a generic one
-        _errorMessage = response?['message'] ??
-            'Incorrect email or password. Please check and try again.';
+        _errorMessage = 'Incorrect email or password. Please check and try again.';
         _status = AuthStatus.unauthenticated;
       }
     } catch (e) {
-      // Network or server error — the backend may be unreachable
-      _errorMessage =
-          'Unable to connect to the server. Please check your internet connection and try again.';
+      _errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
       _status = AuthStatus.unauthenticated;
     }
     

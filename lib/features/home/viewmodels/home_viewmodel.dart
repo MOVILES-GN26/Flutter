@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../../core/services/api_service.dart';
-import '../../post/models/post_item.dart';
+import '../../../core/models/listing.dart';
 
 enum HomeStatus { initial, loading, loaded, error }
 
@@ -9,11 +9,11 @@ class HomeViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
 
   HomeStatus _status = HomeStatus.initial;
-  List<PostItem> _recentlyAddedItems = [];
+  List<Listing> _recentlyAddedItems = [];
   String? _errorMessage;
 
   HomeStatus get status => _status;
-  List<PostItem> get recentlyAddedItems => List.unmodifiable(_recentlyAddedItems);
+  List<Listing> get recentlyAddedItems => List.unmodifiable(_recentlyAddedItems);
   String? get errorMessage => _errorMessage;
 
   /// Cargar los productos recientes desde /products

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../home/views/home_view.dart';
 import '../home/viewmodels/home_viewmodel.dart';
 import '../catalog/views/catalog_view.dart';
+import '../catalog/viewmodels/catalog_viewmodel.dart';
 import '../post/views/post_view.dart';
 import '../favorites/views/favorites_view.dart';
 import '../profile/views/profile_view.dart';
@@ -18,47 +19,46 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeView(),
-    CatalogView(),
-    SizedBox.shrink(), // Post opens as a modal route, not a tab
-    FavoritesView(),
-    ProfileView(),
-  ];
+  void _onTabTap(int index) {
+    if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => const PostView(),
+        ),
+      ).then((_) {
+        if (!mounted) return;
+        context.read<HomeViewModel>().loadHomeData();
+        context.read<CatalogViewModel>().loadProducts();
+      });
+      return;
+    }
+    if (index == 0 && _currentIndex != 0) {
+      context.read<HomeViewModel>().loadHomeData();
+    }
+
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: [
-          ChangeNotifierProvider(
-            create: (_) => HomeViewModel(),
-            child: const HomeView(),
-          ),
-          const CatalogView(),
-          const PostView(),
-          const FavoritesView(),
-          const ProfileView(),
+        children: const [
+          HomeView(),
+          CatalogView(),
+          SizedBox.shrink(),
+          FavoritesView(),
+          ProfileView(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                fullscreenDialog: true,
-                builder: (_) => const PostView(),
-              ),
-            );
-            return;
-          }
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: _onTabTap,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.black,
         unselectedItemColor: const Color(0xFF99944D),

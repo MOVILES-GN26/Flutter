@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/location_service.dart';
-import '../../post/models/post_item.dart';
 
 export '../../../core/constants/post_conditions.dart';
 
@@ -17,7 +17,7 @@ class CatalogViewModel extends ChangeNotifier {
   final LocationService _locationService = LocationService();
 
   CatalogStatus _status = CatalogStatus.initial;
-  List<PostItem> _products = [];
+  List<Listing> _products = [];
   String? _errorMessage;
   String _searchQuery = '';
   String? _selectedCategory;
@@ -27,12 +27,12 @@ class CatalogViewModel extends ChangeNotifier {
   // ── Location state ──
   String? _nearestBuilding;
   List<String> _nearbyBuildings = [];
-  List<PostItem> _nearbyProducts = [];
+  List<Listing> _nearbyProducts = [];
   bool _locationLoaded = false;
   bool _isOnCampus = false;
 
   CatalogStatus get status => _status;
-  List<PostItem> get products => List.unmodifiable(_products);
+  List<Listing> get products => List.unmodifiable(_products);
   String? get errorMessage => _errorMessage;
   String get searchQuery => _searchQuery;
   String? get selectedCategory => _selectedCategory;
@@ -41,7 +41,7 @@ class CatalogViewModel extends ChangeNotifier {
 
   String? get nearestBuilding => _nearestBuilding;
   List<String> get nearbyBuildings => List.unmodifiable(_nearbyBuildings);
-  List<PostItem> get nearbyProducts => List.unmodifiable(_nearbyProducts);
+  List<Listing> get nearbyProducts => List.unmodifiable(_nearbyProducts);
   bool get locationLoaded => _locationLoaded;
   bool get isOnCampus => _isOnCampus;
 
@@ -89,7 +89,7 @@ class CatalogViewModel extends ChangeNotifier {
         priceSort: _selectedPriceSort,
       );
 
-      _products = data.map((json) => PostItem.fromJson(json)).toList();
+      _products = data.map((json) => Listing.fromJson(json)).toList();
       _partitionNearbyProducts();
       _status = CatalogStatus.loaded;
     } catch (e) {
