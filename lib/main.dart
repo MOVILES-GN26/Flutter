@@ -26,59 +26,79 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
           scaffoldBackgroundColor: const Color(0xFFFCFAF7),
-          textTheme: GoogleFonts.plusJakartaSansTextTheme(),
+          // Texto General
+          textTheme: GoogleFonts.plusJakartaSansTextTheme().apply(
+            bodyColor: const Color(0xFF1C1A0D),
+            displayColor: const Color(0xFF1C1A0D),
+          ),
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFFD4C84A),
             surface: Colors.white,
           ),
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.white,
-            foregroundColor: Colors.black87,
+            foregroundColor: Color(0xFF1C1A0D),
             elevation: 0,
+            centerTitle: true,
+            titleTextStyle: TextStyle(
+              color: Color(0xFF1C1A0D),
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+            ),
           ),
+          // Input color
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
-            fillColor: Colors.grey.shade50,
+            fillColor: const Color(0xFFF2F2E8), // Fondo de text inputs
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 14,
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16), 
               borderSide: const BorderSide(color: Color(0xFFE8E5D1)),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFFE8E5D1)),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(
                 color: Color(0xFFD4C84A),
                 width: 1.5,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Colors.red),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Colors.red, width: 1.5),
             ),
-            hintStyle: const TextStyle(color: Color(0xFF96914F), fontSize: 14),
+            // Color del placeholder
+            hintStyle: const TextStyle(
+              color: Color(0xFF99944D), 
+              fontSize: 16, 
+              fontWeight: FontWeight.w400
+            ),
+            // Color del ícono de búsqueda por defecto
+            prefixIconColor: const Color(0xFF99944D), 
           ),
+          // Configuración de botones
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD4C84A),
-              foregroundColor: Colors.black87,
+              backgroundColor: const Color(0xFFF0E342), // Botón Search
+              foregroundColor: const Color(0xFF1C1A0D), // Texto del botón
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(12), 
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),

@@ -32,6 +32,10 @@ class _HomeViewState extends State<HomeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        appBar: AppBar(
+        title: const Text('AndesHub'),
+      ),
+      
       body: SafeArea(
         child: Consumer<HomeViewModel>(
           builder: (context, viewModel, child) {
@@ -59,8 +63,6 @@ class _HomeViewState extends State<HomeView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header con título
-                  _buildHeader(),
                   
                   // Hero section con imagen de fondo y texto
                   _buildHeroSection(),
@@ -82,18 +84,6 @@ class _HomeViewState extends State<HomeView> {
     );
   }
   
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: const Text(
-        'AndesHub',
-        style: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
   
   Widget _buildHeroSection() {
     return Container(
@@ -101,7 +91,7 @@ class _HomeViewState extends State<HomeView> {
       width: double.infinity,
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/home_background.png'),
+          image: AssetImage('assets/images/register-image.png'),
           fit: BoxFit.cover,
         ),
       ),

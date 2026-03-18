@@ -297,16 +297,7 @@ class _CatalogViewState extends State<CatalogView> {
                           width: double.infinity,
                           height: 48,
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  const Color(0xFFD4C84A),
-                              foregroundColor: Colors.black87,
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(24),
-                              ),
-                            ),
-                            onPressed: () {
+                             onPressed: () {
                               Navigator.pop(context);
                               vm.applyFilters(
                                 category: tempCategory,
@@ -314,10 +305,7 @@ class _CatalogViewState extends State<CatalogView> {
                                 condition: tempCondition,
                               );
                             },
-                            child: const Text('Apply',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600)),
+                            child: const Text('Apply'),
                           ),
                         ),
                       ),
@@ -336,23 +324,7 @@ class _CatalogViewState extends State<CatalogView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFCFAF7),
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'AndesHub',
-          style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.black87),
-            onPressed: () {},
-          ),
-        ],
+        title: const Text('AndesHub'),
       ),
       body: Consumer<CatalogViewModel>(
         builder: (context, vm, _) {
@@ -368,10 +340,7 @@ class _CatalogViewState extends State<CatalogView> {
                   decoration: InputDecoration(
                     hintText: 'Search for items',
                     counterText: '',
-                    filled: true,
-                    fillColor: _fillColor,
-                    prefixIcon:
-                        const Icon(Icons.search, color: Color(0xFF96914F)),
+                    prefixIcon: const Icon(Icons.search, color: Color(0xFF96914F)), 
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.close, size: 18),
@@ -381,19 +350,6 @@ class _CatalogViewState extends State<CatalogView> {
                             },
                           )
                         : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                          color: Color(0xFFD4C84A), width: 1.5),
-                    ),
                   ),
                   onChanged: (value) => setState(() {}),
                   onSubmitted: (value) => vm.setSearchQuery(value.trim()),

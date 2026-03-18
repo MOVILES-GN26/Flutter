@@ -13,7 +13,7 @@ class AuthGate extends StatelessWidget {
   
   // TODO: Cambiar este valor para forzar el destino durante desarrollo
 
-  static const AuthDestination? forceDestination = AuthDestination.onboarding; //AuthDestination.home; // AuthDestination.onboarding; // AuthDestination.login; //null for default
+  static const AuthDestination? forceDestination = AuthDestination.home; //AuthDestination.home; // AuthDestination.onboarding; // AuthDestination.login; //null for default
 
   Future<AuthDestination> _determineDestination() async {
     // Si hay un destino forzado, usarlo
