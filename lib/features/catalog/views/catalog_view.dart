@@ -26,6 +26,7 @@ class _CatalogViewState extends State<CatalogView> {
       final vm = context.read<CatalogViewModel>();
       vm.loadProducts();
       vm.detectLocation();
+      vm.loadTrending();
     });
   }
 
@@ -161,7 +162,7 @@ class _CatalogViewState extends State<CatalogView> {
                               spacing: 8,
                               runSpacing: 8,
                               children:
-                                  postCategories.map((cat) {
+                                  vm.sortedCategories.map((cat) {
                                 final isSelected =
                                     tempCategory == cat;
                                 return ChoiceChip(
@@ -409,11 +410,11 @@ class _CatalogViewState extends State<CatalogView> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(
                       horizontal: 24, vertical: 8),
-                  itemCount: postCategories.length,
+                  itemCount: vm.sortedCategories.length,
                   separatorBuilder: (_, _) =>
                       const SizedBox(width: 12),
                   itemBuilder: (context, index) {
-                    final cat = postCategories[index];
+                    final cat = vm.sortedCategories[index];
                     final emoji = categoryEmojis[cat] ?? '📦';
                     final isSelected = vm.selectedCategory == cat;
                     return _CategoryChip(
