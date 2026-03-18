@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/models/listing.dart';
 
 ///
@@ -43,10 +44,14 @@ class ProductDetailView extends StatelessWidget {
                     height: 280,
                     color: const Color(0xFFF5ECCF),
                     child: item.imageUrls.isNotEmpty
-                        ? Image.network(
-                            item.imageUrls.first,
+                        ? CachedNetworkImage(
+                            imageUrl: item.imageUrls.first,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) =>
+                            placeholder: (_, _) => const Center(
+                              child: CircularProgressIndicator(
+                                  color: Color(0xFFD4C84A)),
+                            ),
+                            errorWidget: (_, _, _) =>
                                 _buildImagePlaceholder(),
                           )
                         : _buildImagePlaceholder(),
@@ -203,7 +208,7 @@ class ProductDetailView extends StatelessWidget {
           radius: 30,
           backgroundColor: const Color(0xFFF5ECCF),
           backgroundImage: item.sellerAvatarUrl != null
-              ? NetworkImage(item.sellerAvatarUrl!)
+              ? CachedNetworkImageProvider(item.sellerAvatarUrl!)
               : null,
           child: item.sellerAvatarUrl == null
               ? const Icon(Icons.person, size: 30, color: Color(0xFF8B7E3B))

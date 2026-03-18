@@ -10,20 +10,25 @@ class HomeViewModel extends ChangeNotifier {
 
   HomeStatus _status = HomeStatus.initial;
   List<Listing> _recentlyAddedItems = [];
+  List<String> _trendingCategories = [];
   String? _errorMessage;
 
   HomeStatus get status => _status;
   List<Listing> get recentlyAddedItems => List.unmodifiable(_recentlyAddedItems);
+  List<String> get trendingCategories => List.unmodifiable(_trendingCategories);
   String? get errorMessage => _errorMessage;
 
-  /// Cargar los productos recientes desde /products
+  /// Load recent products and trending categories in parallel.
   Future<void> loadHomeData() async {
     _status = HomeStatus.loading;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _recentlyAddedItems = await _apiService.getRecentProducts();
+      final productsF = _apiService.getRecentProducts();
+      final trendingF = _apiService.getTrendingCategories();
+      _recentlyAddedItems = await productsF;
+      _trendingCategories = await trendingF;
       _status = HomeStatus.loaded;
     } catch (e) {
       _errorMessage = 'Could not load items. Please try again.';

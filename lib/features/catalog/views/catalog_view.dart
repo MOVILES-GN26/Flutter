@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/post_categories.dart';
 import '../../../core/models/listing.dart';
 import '../viewmodels/catalog_viewmodel.dart';
@@ -766,10 +767,14 @@ class _ProductCard extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: item.imageUrls.isNotEmpty
-                    ? Image.network(
-                        item.imageUrls.first,
+                    ? CachedNetworkImage(
+                        imageUrl: item.imageUrls.first,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const Center(
+                        placeholder: (_, _) => const Center(
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Color(0xFFD4C84A)),
+                        ),
+                        errorWidget: (_, _, _) => const Center(
                           child: Icon(Icons.image_outlined,
                               size: 36, color: Color(0xFF8B7E3B)),
                         ),

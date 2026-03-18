@@ -17,6 +17,7 @@ class ApiConfig {
   static const String postsEndpoint = '/posts';
   static const String productsEndpoint = '/products';
   static const String usersEndpoint = '/users';
+  static const String trendingCategoriesEndpoint = '/trending/categories';
   
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);

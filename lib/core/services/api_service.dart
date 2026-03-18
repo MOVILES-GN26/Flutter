@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'api_config.dart';
@@ -212,10 +213,36 @@ class ApiService {
             ApiConfig.connectionTimeout,
           );
 
+      if (streamedResponse.statusCode != 200 &&
+          streamedResponse.statusCode != 201) {
+        final body = await streamedResponse.stream.bytesToString();
+        debugPrint('[createPost] failed ${streamedResponse.statusCode}: $body');
+      }
+
       return streamedResponse.statusCode == 200 ||
           streamedResponse.statusCode == 201;
     } catch (e) {
+      debugPrint('[createPost] exception: $e');
       return false;
+    }
+  }
+
+  /// Fetch the top trending categories of the last 7 days.
+  Future<List<String>> getTrendingCategories() async {
+    try {
+      final uri = Uri.parse(
+          '${ApiConfig.baseUrl}${ApiConfig.trendingCategoriesEndpoint}');
+      final response = await http
+          .get(uri, headers: ApiConfig.defaultHeaders)
+          .timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List<dynamic>;
+        return data.map((e) => e['category'] as String).toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
     }
   }
 
