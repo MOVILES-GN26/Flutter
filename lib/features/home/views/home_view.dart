@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../catalog/views/product_detail_view.dart';
+import '../../../core/constants/post_categories.dart';
 import '../../../core/models/listing.dart';
 import '../viewmodels/home_viewmodel.dart';
 
@@ -72,7 +74,7 @@ class _HomeViewState extends State<HomeView> {
                   _buildSearchBar(),
                   
                   // Categorías
-                  _buildCategories(),
+                  _buildCategories(viewModel),
                   
                   // Recently Added
                   _buildRecentlyAdded(viewModel),
@@ -205,75 +207,61 @@ class _HomeViewState extends State<HomeView> {
     );
   }
   
-  Widget _buildCategories() {
-    final categories = [
-      {'icon': Icons.menu_book, 'label': 'Books'},
-      {'icon': Icons.devices, 'label': 'Tech'},
-      {'icon': Icons.home_work, 'label': 'Housing'},
-      {'icon': Icons.miscellaneous_services, 'label': 'Services'},
-      {'icon': Icons.event, 'label': 'Events'},
-      {'icon': Icons.category, 'label': 'Other'},
-    ];
+  Widget _buildCategories(HomeViewModel viewModel) {
+    final trending = viewModel.trendingCategories;
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Categories',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+            'Trending Categories',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: categories.map((category) {
-              return _buildCategoryItem(
-                category['icon']! as IconData,
-                category['label']! as String,
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryItem(IconData icon, String label) {
-    return InkWell(
-      onTap: () {},
-      child: Container(
-        width: (MediaQuery.of(context).size.width - 56) / 3,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 40, color: const Color(0xFF8B7E3B)),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+          const SizedBox(height: 12),
+          if (trending.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No trending categories yet — start browsing!',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
+            )
+          else
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: trending.map((category) {
+                final emoji = categoryEmojis[category] ?? '📦';
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5ECCF),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFD4C84A)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(emoji,
+                          style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 6),
+                      Text(
+                        category,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF8B7E3B),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -336,20 +324,22 @@ class _HomeViewState extends State<HomeView> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey.shade300,
-                            child: Icon(
-                              Icons.image,
-                              size: 60,
-                              color: Colors.grey.shade400,
-                            ),
-                          );
-                        },
+                        placeholder: (_, _) => Container(
+                          color: Colors.grey.shade200,
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Color(0xFFD4C84A)),
+                          ),
+                        ),
+                        errorWidget: (_, _, _) => Container(
+                          color: Colors.grey.shade300,
+                          child: Icon(Icons.image,
+                              size: 60, color: Colors.grey.shade400),
+                        ),
                       )
                     : Container(
                         color: Colors.grey.shade300,

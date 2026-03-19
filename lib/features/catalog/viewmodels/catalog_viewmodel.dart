@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/constants/post_categories.dart';
 
 export '../../../core/constants/post_conditions.dart';
 
@@ -24,6 +25,9 @@ class CatalogViewModel extends ChangeNotifier {
   String? _selectedCondition;
   String? _selectedPriceSort;
 
+  // ── Trending state ──
+  List<String> _trendingCategories = [];
+
   // ── Location state ──
   String? _nearestBuilding;
   List<String> _nearbyBuildings = [];
@@ -44,6 +48,22 @@ class CatalogViewModel extends ChangeNotifier {
   List<Listing> get nearbyProducts => List.unmodifiable(_nearbyProducts);
   bool get locationLoaded => _locationLoaded;
   bool get isOnCampus => _isOnCampus;
+
+  /// Categories sorted by trending (most searched first), rest appended.
+  List<String> get sortedCategories {
+    if (_trendingCategories.isEmpty) return postCategories;
+    final trending = _trendingCategories.where(postCategories.contains).toList();
+    final rest = postCategories.where((c) => !_trendingCategories.contains(c)).toList();
+    return [...trending, ...rest];
+  }
+
+  /// Fetch trending categories and update sort order. Fire-and-forget on init.
+  Future<void> loadTrending() async {
+    try {
+      _trendingCategories = await _apiService.getTrendingCategories();
+      notifyListeners();
+    } catch (_) {}
+  }
 
   /// Detect the user's location and determine which campus building
   /// they are closest to. Call once when the catalog screen loads.
