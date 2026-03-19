@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'api_config.dart';
 import 'storage_service.dart';
-import '../../features/post/models/post_item.dart';
+import '../models/listing.dart';
 
 /// Servicio central para peticiones HTTP al API
 class ApiService {
@@ -185,7 +186,7 @@ class ApiService {
       );
 
       if (token != null) {
-        request.headers.addAll(ApiConfig.authHeaders(token));
+        request.headers['Authorization'] = 'Bearer $token';
       }
 
       request.fields['title'] = title;
@@ -196,8 +197,14 @@ class ApiService {
       request.fields['condition'] = condition;
 
       for (final image in images) {
+        final ext = image.path.split('.').last.toLowerCase();
+        final subtype = (ext == 'png' || ext == 'gif' || ext == 'webp') ? ext : 'jpeg';
         request.files.add(
-          await http.MultipartFile.fromPath('images', image.path),
+          await http.MultipartFile.fromPath(
+            'images',
+            image.path,
+            contentType: MediaType('image', subtype),
+          ),
         );
       }
 
@@ -211,12 +218,12 @@ class ApiService {
       return false;
     }
   }
-  
+
   /// Fetch the most recent listings for the Home screen.
-  Future<List<PostItem>> getRecentProducts() async {
+  Future<List<Listing>> getRecentProducts() async {
     try {
       final data = await getProducts();
-      return data.map((json) => PostItem.fromJson(json)).toList();
+      return data.map((json) => Listing.fromJson(json)).toList();
     } catch (e) {
       return [];
     }

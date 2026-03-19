@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../post/models/post_item.dart';
+import '../../../core/models/listing.dart';
 
-/// Product Detail page matching the Figma design.
 ///
-/// Receives a [PostItem] and displays its full information:
+/// Receives a [Listing] and displays its full information:
 /// hero image, title, price, seller info, description, and action buttons.
 class ProductDetailView extends StatelessWidget {
-  final PostItem item;
+  final Listing item;
 
   const ProductDetailView({super.key, required this.item});
 
@@ -152,19 +151,19 @@ class ProductDetailView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                sellerName,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF96914F),
-                ),
-              ),
               const Text(
                 'Seller Information',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: Colors.black87,
+                ),
+              ),
+              Text(
+                sellerName,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF96914F),
                 ),
               ),
               if (sellerMajor.isNotEmpty)

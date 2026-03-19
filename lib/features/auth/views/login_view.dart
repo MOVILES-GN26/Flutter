@@ -119,13 +119,6 @@ class _LoginViewState extends State<LoginView> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Email is required';
                         }
-                        if (!value.trim().endsWith('@uniandes.edu.co')) {
-                          return 'Must be a @uniandes.edu.co email';
-                        }
-                        final username = value.trim().split('@').first;
-                        if (username.isEmpty) {
-                          return 'Enter your username before @uniandes.edu.co';
-                        }
                         return null;
                       },
                     ),
@@ -165,9 +158,6 @@ class _LoginViewState extends State<LoginView> {
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Password is required';
-                        }
-                        if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
                         }
                         return null;
                       },
