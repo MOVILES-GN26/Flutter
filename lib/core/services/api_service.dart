@@ -177,6 +177,7 @@ class ApiService {
     required double price,
     required String condition,
     required List<File> images,
+    String? storeId,
   }) async {
     try {
       final token = await _storageService.getAccessToken();
@@ -196,6 +197,9 @@ class ApiService {
       request.fields['building_location'] = buildingLocation;
       request.fields['price'] = price.toString();
       request.fields['condition'] = condition;
+      if (storeId != null) {
+        request.fields['store_id'] = storeId;
+      }
 
       for (final image in images) {
         final ext = image.path.split('.').last.toLowerCase();
@@ -239,6 +243,27 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List<dynamic>;
         return data.map((e) => e['category'] as String).toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Fetch the stores owned by the authenticated user.
+  Future<List<Map<String, dynamic>>> getMyStores() async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return [];
+      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.myStoresEndpoint}');
+      final response = await http
+          .get(uri, headers: ApiConfig.authHeaders(token))
+          .timeout(ApiConfig.connectionTimeout);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return List<Map<String, dynamic>>.from(data);
+        }
       }
       return [];
     } catch (_) {

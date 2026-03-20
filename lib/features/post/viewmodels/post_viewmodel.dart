@@ -13,10 +13,27 @@ class PostViewModel extends ChangeNotifier {
   PostStatus _status = PostStatus.initial;
   String? _errorMessage;
   final List<File> _images = [];
+  List<Map<String, dynamic>> _stores = [];
+  bool _storesLoaded = false;
+  String? _selectedStoreId; // null = Personal Profile
 
   PostStatus get status => _status;
   String? get errorMessage => _errorMessage;
   List<File> get images => List.unmodifiable(_images);
+  List<Map<String, dynamic>> get stores => List.unmodifiable(_stores);
+  bool get storesLoaded => _storesLoaded;
+  String? get selectedStoreId => _selectedStoreId;
+
+  void selectStore(String? storeId) {
+    _selectedStoreId = storeId;
+    notifyListeners();
+  }
+
+  Future<void> loadStores() async {
+    _stores = await _apiService.getMyStores();
+    _storesLoaded = true;
+    notifyListeners();
+  }
 
   static const int maxImages = 1;
 
@@ -82,6 +99,7 @@ class PostViewModel extends ChangeNotifier {
         price: price,
         condition: condition,
         images: _images,
+        storeId: _selectedStoreId,
       );
 
       if (success) {
@@ -104,6 +122,7 @@ class PostViewModel extends ChangeNotifier {
     _status = PostStatus.initial;
     _errorMessage = null;
     _images.clear();
+    _selectedStoreId = null;
     notifyListeners();
   }
 }

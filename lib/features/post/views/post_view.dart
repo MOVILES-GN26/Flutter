@@ -24,6 +24,14 @@ class _PostViewState extends State<PostView> {
   String? _selectedCondition;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PostViewModel>().loadStores();
+    });
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
@@ -95,9 +103,6 @@ class _PostViewState extends State<PostView> {
         // On success, show confirmation and reset
         if (vm.status == PostStatus.success) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Item published successfully!')),
-            );
             _titleController.clear();
             _descriptionController.clear();
             _priceController.clear();
@@ -107,6 +112,7 @@ class _PostViewState extends State<PostView> {
               _selectedCondition = null;
             });
             vm.reset();
+            Navigator.pop(context, true);
           });
         }
 
@@ -498,6 +504,69 @@ class _PostViewState extends State<PostView> {
                         }
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Post as
+                    const Text(
+                      'Post as',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF96914F),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5ECCF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE8E5D1)),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String?>(
+                          isExpanded: true,
+                          value: vm.selectedStoreId,
+                          icon: const Icon(Icons.arrow_drop_down,
+                              color: Colors.black54),
+                          onChanged: (value) => vm.selectStore(value),
+                          items: [
+                            DropdownMenuItem<String?>(
+                              value: null,
+                              child: Row(
+                                children: const [
+                                  Icon(Icons.person_outline,
+                                      size: 20, color: Colors.black54),
+                                  SizedBox(width: 10),
+                                  Text('Personal Profile',
+                                      style: TextStyle(fontSize: 14)),
+                                ],
+                              ),
+                            ),
+                            ...vm.stores.map(
+                              (store) => DropdownMenuItem<String?>(
+                                value: store['id'] as String,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.storefront_outlined,
+                                        size: 20, color: Colors.black54),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        store['name'] as String,
+                                        style:
+                                            const TextStyle(fontSize: 14),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
 
