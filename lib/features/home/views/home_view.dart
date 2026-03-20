@@ -233,7 +233,7 @@ class _HomeViewState extends State<HomeView> {
               spacing: 10,
               runSpacing: 10,
               children: trending.map((category) {
-                final emoji = categoryEmojis[category] ?? '📦';
+                final icon = categoryIcons[category] ?? Icons.category;
                 return Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 10),
@@ -245,8 +245,7 @@ class _HomeViewState extends State<HomeView> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(emoji,
-                          style: const TextStyle(fontSize: 18)),
+                      Icon(icon, size: 18, color: const Color(0xFF8B7E3B)),
                       const SizedBox(width: 6),
                       Text(
                         category,

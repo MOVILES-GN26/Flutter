@@ -403,7 +403,7 @@ class _CatalogViewState extends State<CatalogView> {
                 ),
               ),
 
-              // ── Emoji category strip (horizontal scroll) ──
+              // ── Icon category strip (horizontal scroll) ──
               SizedBox(
                 height: 88,
                 child: ListView.separated(
@@ -415,10 +415,10 @@ class _CatalogViewState extends State<CatalogView> {
                       const SizedBox(width: 12),
                   itemBuilder: (context, index) {
                     final cat = vm.sortedCategories[index];
-                    final emoji = categoryEmojis[cat] ?? '📦';
+                    final icon = categoryIcons[cat] ?? Icons.category;
                     final isSelected = vm.selectedCategory == cat;
                     return _CategoryChip(
-                      emoji: emoji,
+                      icon: icon,
                       label: cat.split(' ').first, // short label
                       isSelected: isSelected,
                       onTap: () => vm.setCategory(
@@ -625,15 +625,15 @@ class _FilterIconButton extends StatelessWidget {
   }
 }
 
-// ── Emoji category chip for the horizontal strip ──
+// ── Icon category chip for the horizontal strip ──
 class _CategoryChip extends StatelessWidget {
-  final String emoji;
+  final IconData icon;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _CategoryChip({
-    required this.emoji,
+    required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
@@ -664,7 +664,13 @@ class _CategoryChip extends StatelessWidget {
                 ),
               ),
               child: Center(
-                child: Text(emoji, style: const TextStyle(fontSize: 22)),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: isSelected
+                      ? const Color(0xFF8B7E3B)
+                      : Colors.black87,
+                ),
               ),
             ),
             const SizedBox(height: 4),

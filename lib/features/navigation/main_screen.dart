@@ -27,10 +27,13 @@ class _MainScreenState extends State<MainScreen> {
           fullscreenDialog: true,
           builder: (_) => const PostView(),
         ),
-      ).then((_) {
+      ).then((result) {
         if (!mounted) return;
         context.read<HomeViewModel>().loadHomeData();
         context.read<CatalogViewModel>().loadProducts();
+        if (result == true) {
+          setState(() => _currentIndex = 0);
+        }
       });
       return;
     }
