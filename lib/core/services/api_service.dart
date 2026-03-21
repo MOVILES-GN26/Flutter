@@ -319,4 +319,112 @@ class ApiService {
       return [];
     }
   }
+
+  /// Update the authenticated user's profile fields (PATCH /users/me).
+  Future<bool> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? major,
+    String? password,
+  }) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return false;
+      final body = <String, dynamic>{};
+      if (firstName != null && firstName.isNotEmpty) body['first_name'] = firstName;
+      if (lastName != null && lastName.isNotEmpty) body['last_name'] = lastName;
+      if (major != null && major.isNotEmpty) body['major'] = major;
+      if (password != null && password.isNotEmpty) body['password'] = password;
+      if (body.isEmpty) return true;
+      final response = await http.patch(
+        Uri.parse('${ApiConfig.baseUrl}/users/me'),
+        headers: ApiConfig.authHeaders(token),
+        body: jsonEncode(body),
+      ).timeout(ApiConfig.connectionTimeout);
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      debugPrint('[updateProfile] exception: $e');
+      return false;
+    }
+  }
+
+  /// Upload a new avatar for the authenticated user (PATCH /users/me/avatar).
+  Future<String?> updateAvatar(File imageFile) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return null;
+      final request = http.MultipartRequest(
+        'PATCH',
+        Uri.parse('${ApiConfig.baseUrl}/users/me/avatar'),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      final ext = imageFile.path.split('.').last.toLowerCase();
+      final subtype = (ext == 'png' || ext == 'gif' || ext == 'webp') ? ext : 'jpeg';
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'avatar',
+          imageFile.path,
+          contentType: MediaType('image', subtype),
+        ),
+      );
+      final streamed = await request.send().timeout(ApiConfig.connectionTimeout);
+      if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+        final body = await streamed.stream.bytesToString();
+        final data = jsonDecode(body);
+        return data['avatar_url'] as String?;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[updateAvatar] exception: $e');
+      return null;
+    }
+  }
+
+  /// Delete a product/post by its ID.
+  Future<bool> deleteProduct(String id) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return false;
+      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.postsEndpoint}/$id');
+      final response = await http.delete(
+        uri,
+        headers: ApiConfig.authHeaders(token),
+      ).timeout(ApiConfig.connectionTimeout);
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      debugPrint('[deleteProduct] exception: $e');
+      return false;
+    }
+  }
+
+  /// Fetch all products/listings created by a specific user.
+  Future<List<Listing>> getUserProducts(String userId) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return [];
+      final uri = Uri.parse('${ApiConfig.baseUrl}/users/$userId/products');
+      final response = await http.get(
+        uri,
+        headers: ApiConfig.authHeaders(token),
+      ).timeout(ApiConfig.connectionTimeout);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        List<dynamic> items;
+        if (data is Map && data['items'] is List) {
+          items = data['items'] as List;
+        } else if (data is List) {
+          items = data;
+        } else {
+          return [];
+        }
+        return items
+            .map((json) => Listing.fromJson(json as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[getUserProducts] exception: $e');
+      return [];
+    }
+  }
 }

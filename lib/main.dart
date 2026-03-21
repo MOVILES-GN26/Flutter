@@ -6,6 +6,7 @@ import 'features/auth/viewmodels/auth_viewmodel.dart';
 import 'features/catalog/viewmodels/catalog_viewmodel.dart';
 import 'features/home/viewmodels/home_viewmodel.dart';
 import 'features/post/viewmodels/post_viewmodel.dart';
+import 'features/profile/viewmodels/profile_viewmodel.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,6 +23,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => HomeViewModel()),
         ChangeNotifierProvider(create: (_) => CatalogViewModel()),
         ChangeNotifierProvider(create: (_) => PostViewModel()),
+        ChangeNotifierProvider(create: (_) => ProfileViewModel()),
       ],
       child: MaterialApp(
         title: 'AndesHub',
