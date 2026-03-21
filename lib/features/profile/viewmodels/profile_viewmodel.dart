@@ -27,6 +27,7 @@ class ProfileViewModel extends ChangeNotifier {
   String? _firstName;
   String? _lastName;
   String? _avatarUrl;
+  String? _phoneNumber;
 
   ProfileStatus get status => _status;
   List<Listing> get listings => List.unmodifiable(_listings);
@@ -38,6 +39,7 @@ class ProfileViewModel extends ChangeNotifier {
   String? get firstName => _firstName;
   String? get lastName => _lastName;
   String? get avatarUrl => _avatarUrl;
+  String? get phoneNumber => _phoneNumber;
 
   /// Loads the profile. Accepts an [AuthUser] from AuthViewModel
   /// (populated when the user logged in during the current session).
@@ -97,6 +99,7 @@ class ProfileViewModel extends ChangeNotifier {
     required String lastName,
     required String major,
     String? password,
+    String? phoneNumber,
   }) async {
     try {
       final success = await _apiService.updateProfile(
@@ -104,12 +107,14 @@ class ProfileViewModel extends ChangeNotifier {
         lastName: lastName,
         major: major,
         password: password?.isNotEmpty == true ? password : null,
+        phoneNumber: phoneNumber?.isNotEmpty == true ? phoneNumber : null,
       );
       if (success) {
         _firstName = firstName;
         _lastName = lastName;
         _major = major;
         _name = '$firstName $lastName'.trim();
+        if (phoneNumber != null) _phoneNumber = phoneNumber;
         notifyListeners();
       }
       return success;
@@ -174,6 +179,7 @@ class ProfileViewModel extends ChangeNotifier {
 
       _major = data['major'] as String?;
       _studentId = data['student_id']?.toString();
+      _phoneNumber = data['phone_number'] as String?;
     } catch (e) {
       debugPrint('[ProfileViewModel] JWT decode error: $e');
     }

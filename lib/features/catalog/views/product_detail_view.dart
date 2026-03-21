@@ -325,7 +325,18 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           ),
         ],
       ),
-      child: Column(
+      child: _isOwner
+          ? const Center(
+              child: Text(
+                'This is your listing',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black45,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            )
+          : Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Buy Now → navigate to Complete Payment
@@ -352,8 +363,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             height: 48,
             child: OutlinedButton(
               onPressed: () async {
-                final phone = widget.item.sellerPhone;
-                if (phone == null || phone.isEmpty) {
+                final rawPhone = widget.item.sellerPhone;
+                if (rawPhone == null || rawPhone.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                         content:
@@ -361,7 +372,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   );
                   return;
                 }
-                final uri = Uri.parse('https://wa.me/$phone');
+                final phone = rawPhone.startsWith('57')
+                    ? rawPhone
+                    : '57$rawPhone';
+                final message = Uri.encodeComponent(
+                    'Hola, estoy interesado en comprar ${widget.item.title}');
+                final uri = Uri.parse('https://wa.me/$phone?text=$message');
                 if (!await launchUrl(uri,
                     mode: LaunchMode.externalApplication)) {
                   if (context.mounted) {

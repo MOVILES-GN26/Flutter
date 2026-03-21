@@ -18,6 +18,7 @@ class _RegisterViewState extends State<RegisterView> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _selectedMajor;
   bool _obscurePassword = true;
@@ -48,6 +49,7 @@ class _RegisterViewState extends State<RegisterView> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -60,6 +62,7 @@ class _RegisterViewState extends State<RegisterView> {
             email: _emailController.text.trim(),
             major: _selectedMajor ?? '',
             password: _passwordController.text,
+            phoneNumber: _phoneController.text.trim(),
           );
     }
   }
@@ -265,6 +268,30 @@ class _RegisterViewState extends State<RegisterView> {
                             ),
                           ),
                         );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Phone Number
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      maxLength: 10,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      decoration: const InputDecoration(
+                        hintText: 'Phone Number (10 digits)',
+                        counterText: '',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Phone number is required';
+                        }
+                        if (value.trim().length != 10) {
+                          return 'Must be exactly 10 digits';
+                        }
+                        return null;
                       },
                     ),
                     const SizedBox(height: 16),

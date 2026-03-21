@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/uniandes_majors.dart';
@@ -22,6 +23,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _firstNameCtrl;
   late TextEditingController _lastNameCtrl;
+  late TextEditingController _phoneCtrl;
   late TextEditingController _passwordCtrl;
   late TextEditingController _confirmPasswordCtrl;
 
@@ -37,6 +39,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     final vm = context.read<ProfileViewModel>();
     _firstNameCtrl = TextEditingController(text: vm.firstName ?? '');
     _lastNameCtrl = TextEditingController(text: vm.lastName ?? '');
+    _phoneCtrl = TextEditingController(text: vm.phoneNumber ?? '');
     _passwordCtrl = TextEditingController();
     _confirmPasswordCtrl = TextEditingController();
     _selectedMajor = vm.major;
@@ -46,6 +49,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   void dispose() {
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
+    _phoneCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
     super.dispose();
@@ -92,6 +96,7 @@ class _EditProfileViewState extends State<EditProfileView> {
       lastName: _lastNameCtrl.text.trim(),
       major: _selectedMajor ?? (vm.major ?? ''),
       password: password.isNotEmpty ? password : null,
+      phoneNumber: _phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null,
     );
 
     if (!profileOk) allOk = false;
@@ -174,6 +179,37 @@ class _EditProfileViewState extends State<EditProfileView> {
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? 'Please enter your last name'
                         : null,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── Phone Number ──
+                  _FieldLabel(label: 'Phone Number'),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 10,
+                    style: const TextStyle(fontSize: 15, color: Color(0xFF1C1A0D)),
+                    decoration: InputDecoration(
+                      hintText: 'Phone number (10 digits)',
+                      hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
+                      counterText: '',
+                      filled: true,
+                      fillColor: _kCardBg,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _kYellow, width: 1.5)),
+                      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.redAccent, width: 1)),
+                      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.redAccent, width: 1.5)),
+                    ),
+                    validator: (v) {
+                      if (v != null && v.isNotEmpty && v.length != 10) {
+                        return 'Must be exactly 10 digits';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 20),
 

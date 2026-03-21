@@ -272,6 +272,16 @@ class _PersonalInfoSection extends StatelessWidget {
             value: vm.email ?? '—',
           ),
 
+          // Phone tile
+          if (vm.phoneNumber?.isNotEmpty == true) ...[
+            const SizedBox(height: 10),
+            _InfoTile(
+              icon: Icons.phone_outlined,
+              label: 'Phone',
+              value: vm.phoneNumber!,
+            ),
+          ],
+
           // Student ID tile (only when the JWT provides it)
           if (vm.studentId?.isNotEmpty == true) ...[
             const SizedBox(height: 10),
