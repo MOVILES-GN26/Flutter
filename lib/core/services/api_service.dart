@@ -319,4 +319,84 @@ class ApiService {
       return [];
     }
   }
+
+  /// Creates an order for a product.
+  Future<Map<String, dynamic>?> createOrder({
+    required String productId,
+    required int quantity,
+    String? deliveryOption,
+  }) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return null;
+
+      final body = <String, dynamic>{
+        'product_id': productId,
+        'quantity': quantity,
+      };
+      if (deliveryOption != null) body['delivery_option'] = deliveryOption;
+
+      final response = await http
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordersEndpoint}'),
+            headers: ApiConfig.authHeaders(token),
+            body: jsonEncode(body),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      debugPrint('[createOrder] failed ${response.statusCode}: ${response.body}');
+      return null;
+    } catch (e) {
+      debugPrint('[createOrder] exception: $e');
+      return null;
+    }
+  }
+
+  /// Uploads a payment proof image (as bytes) for the given order.
+  Future<Map<String, dynamic>?> uploadPaymentProof(
+    String orderId,
+    List<int> fileBytes,
+    String fileName,
+  ) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return null;
+
+      final ext = fileName.split('.').last.toLowerCase();
+      final subtype =
+          ['png', 'gif', 'webp'].contains(ext) ? ext : 'jpeg';
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.ordersEndpoint}/$orderId/upload-proof'),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          fileBytes,
+          filename: fileName,
+          contentType: MediaType('image', subtype),
+        ),
+      );
+
+      final streamed =
+          await request.send().timeout(ApiConfig.connectionTimeout);
+      final responseBody = await streamed.stream.bytesToString();
+
+      if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+        return jsonDecode(responseBody) as Map<String, dynamic>;
+      }
+      debugPrint(
+          '[uploadPaymentProof] failed ${streamed.statusCode}: $responseBody');
+      return null;
+    } catch (e) {
+      debugPrint('[uploadPaymentProof] exception: $e');
+      return null;
+    }
+  }
 }
