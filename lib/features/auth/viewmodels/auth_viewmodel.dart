@@ -92,11 +92,12 @@ class AuthViewModel extends ChangeNotifier {
     required String email,
     required String major,
     required String password,
+    required String phoneNumber,
   }) async {
     _status = AuthStatus.loading;
     _errorMessage = null;
     notifyListeners();
-    
+
     try {
       final response = await _apiService.register(
         firstName: firstName,
@@ -104,6 +105,7 @@ class AuthViewModel extends ChangeNotifier {
         email: email,
         major: major,
         password: password,
+        phoneNumber: phoneNumber,
       );
       
       if (response != null && response['access_token'] != null) {

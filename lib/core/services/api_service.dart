@@ -99,6 +99,7 @@ class ApiService {
     required String email,
     required String major,
     required String password,
+    required String phoneNumber,
   }) async {
     try {
       final response = await http.post(
@@ -110,6 +111,7 @@ class ApiService {
           'email': email,
           'major': major,
           'password': password,
+          'phone_number': phoneNumber,
         }),
       ).timeout(ApiConfig.connectionTimeout);
       
@@ -317,6 +319,203 @@ class ApiService {
       return data.map((json) => Listing.fromJson(json)).toList();
     } catch (e) {
       return [];
+    }
+  }
+
+  /// Fetch all products belonging to a specific user.
+  Future<List<Listing>> getUserProducts(String userId) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      final uri = Uri.parse(
+          '${ApiConfig.baseUrl}${ApiConfig.usersEndpoint}/$userId/products');
+      final response = await http.get(
+        uri,
+        headers: token != null
+            ? ApiConfig.authHeaders(token)
+            : ApiConfig.defaultHeaders,
+      ).timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final list = data is List ? data : (data['items'] as List? ?? []);
+        return list
+            .map((json) => Listing.fromJson(json as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[getUserProducts] exception: $e');
+      return [];
+    }
+  }
+
+  /// Deletes a product by ID. Returns true on success.
+  Future<bool> deleteProduct(String id) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return false;
+
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productsEndpoint}/$id'),
+        headers: ApiConfig.authHeaders(token),
+      ).timeout(ApiConfig.connectionTimeout);
+
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      debugPrint('[deleteProduct] exception: $e');
+      return false;
+    }
+  }
+
+  /// Updates the authenticated user's profile via PATCH /users/me.
+  Future<bool> updateProfile({
+    required String firstName,
+    required String lastName,
+    required String major,
+    String? password,
+    String? phoneNumber,
+  }) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return false;
+
+      final body = <String, dynamic>{
+        'first_name': firstName,
+        'last_name': lastName,
+        'major': major,
+      };
+      if (password != null) body['password'] = password;
+      if (phoneNumber != null) body['phone_number'] = phoneNumber;
+
+      final response = await http.patch(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usersEndpoint}/me'),
+        headers: ApiConfig.authHeaders(token),
+        body: jsonEncode(body),
+      ).timeout(ApiConfig.connectionTimeout);
+
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      debugPrint('[updateProfile] exception: $e');
+      return false;
+    }
+  }
+
+  /// Uploads a new avatar image. Returns the new avatar URL on success.
+  Future<String?> updateAvatar(File imageFile) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return null;
+
+      final ext = imageFile.path.split('.').last.toLowerCase();
+      final subtype =
+          ['png', 'gif', 'webp'].contains(ext) ? ext : 'jpeg';
+
+      final request = http.MultipartRequest(
+        'PATCH',
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.usersEndpoint}/me/avatar'),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'avatar',
+          imageFile.path,
+          contentType: MediaType('image', subtype),
+        ),
+      );
+
+      final streamed = await request.send().timeout(ApiConfig.connectionTimeout);
+      final responseBody = await streamed.stream.bytesToString();
+
+      if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+        final data = jsonDecode(responseBody);
+        return data['avatar_url'] as String? ?? data['url'] as String?;
+      }
+      debugPrint('[updateAvatar] failed ${streamed.statusCode}: $responseBody');
+      return null;
+    } catch (e) {
+      debugPrint('[updateAvatar] exception: $e');
+      return null;
+    }
+  }
+
+  /// Creates an order for a product.
+  Future<Map<String, dynamic>?> createOrder({
+    required String productId,
+    required int quantity,
+    String? deliveryOption,
+  }) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return null;
+
+      final body = <String, dynamic>{
+        'product_id': productId,
+        'quantity': quantity,
+      };
+      if (deliveryOption != null) body['delivery_option'] = deliveryOption;
+
+      final response = await http
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordersEndpoint}'),
+            headers: ApiConfig.authHeaders(token),
+            body: jsonEncode(body),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      debugPrint('[createOrder] failed ${response.statusCode}: ${response.body}');
+      return null;
+    } catch (e) {
+      debugPrint('[createOrder] exception: $e');
+      return null;
+    }
+  }
+
+  /// Uploads a payment proof image (as bytes) for the given order.
+  Future<Map<String, dynamic>?> uploadPaymentProof(
+    String orderId,
+    List<int> fileBytes,
+    String fileName,
+  ) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return null;
+
+      final ext = fileName.split('.').last.toLowerCase();
+      final subtype =
+          ['png', 'gif', 'webp'].contains(ext) ? ext : 'jpeg';
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.ordersEndpoint}/$orderId/upload-proof'),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          fileBytes,
+          filename: fileName,
+          contentType: MediaType('image', subtype),
+        ),
+      );
+
+      final streamed =
+          await request.send().timeout(ApiConfig.connectionTimeout);
+      final responseBody = await streamed.stream.bytesToString();
+
+      if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+        return jsonDecode(responseBody) as Map<String, dynamic>;
+      }
+      debugPrint(
+          '[uploadPaymentProof] failed ${streamed.statusCode}: $responseBody');
+      return null;
+    } catch (e) {
+      debugPrint('[uploadPaymentProof] exception: $e');
+      return null;
     }
   }
 }

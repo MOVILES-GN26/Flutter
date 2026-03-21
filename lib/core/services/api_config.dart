@@ -17,7 +17,7 @@ class ApiConfig {
     // Si usas un dispositivo físico real, debes poner la IP de tu computadora (ej: http://192.168.1.10:3000)
     return 'http://localhost:3000';
   }
-  
+
   // Endpoints disponibles
   static const String homeEndpoint = '/home';
   static const String refreshEndpoint = '/refresh';
@@ -27,6 +27,7 @@ class ApiConfig {
   static const String postsEndpoint = '/posts';
   static const String productsEndpoint = '/products';
   static const String usersEndpoint = '/users';
+  static const String ordersEndpoint = '/orders';
   static const String trendingCategoriesEndpoint = '/trending/categories';
   static const String myStoresEndpoint = '/stores/my-stores';
   static const String interactionsViewEndpoint = '/interactions/view';
