@@ -17,7 +17,7 @@ class ApiConfig {
     // Si usas un dispositivo físico real, debes poner la IP de tu computadora (ej: http://192.168.1.10:3000)
     return 'http://localhost:3000';
   }
-  
+
   // Endpoints disponibles
   static const String homeEndpoint = '/home';
   static const String refreshEndpoint = '/refresh';
