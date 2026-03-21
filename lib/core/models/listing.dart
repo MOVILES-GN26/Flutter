@@ -12,6 +12,7 @@ class Listing {
   final String? sellerName;
   final String? sellerMajor;
   final String? sellerAvatarUrl;
+  final String? sellerPhone;
   final DateTime? createdAt;
 
   Listing({
@@ -27,6 +28,7 @@ class Listing {
     this.sellerName,
     this.sellerMajor,
     this.sellerAvatarUrl,
+    this.sellerPhone,
     this.createdAt,
   });
 
@@ -45,6 +47,7 @@ class Listing {
       sellerName: seller?['name'] ?? json['seller_name'],
       sellerMajor: seller?['major'] ?? json['seller_major'],
       sellerAvatarUrl: seller?['avatar_url'] ?? json['seller_avatar_url'],
+      sellerPhone: seller?['phone_number'] ?? json['seller_phone'],
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
           : null,

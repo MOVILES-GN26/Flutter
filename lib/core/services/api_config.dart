@@ -27,6 +27,7 @@ class ApiConfig {
   static const String postsEndpoint = '/posts';
   static const String productsEndpoint = '/products';
   static const String usersEndpoint = '/users';
+  static const String ordersEndpoint = '/orders';
   static const String trendingCategoriesEndpoint = '/trending/categories';
   static const String myStoresEndpoint = '/stores/my-stores';
   static const String interactionsViewEndpoint = '/interactions/view';

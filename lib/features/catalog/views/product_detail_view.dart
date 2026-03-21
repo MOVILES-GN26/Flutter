@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/storage_service.dart';
+import '../../payments/views/complete_payment_view.dart';
 
 ///
 /// Receives a [Listing] and displays its full information:
@@ -326,15 +328,18 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Buy Now
+          // Buy Now → navigate to Complete Payment
           SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
               onPressed: () {
-                // TODO: Implement purchase / checkout flow
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Purchase flow coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        CompletePaymentView(item: widget.item),
+                  ),
                 );
               },
               child: const Text('Buy Now'),
@@ -346,12 +351,26 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             width: double.infinity,
             height: 48,
             child: OutlinedButton(
-              onPressed: () {
-                // TODO: Open WhatsApp with seller's phone number
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('WhatsApp contact coming soon!')),
-                );
+              onPressed: () async {
+                final phone = widget.item.sellerPhone;
+                if (phone == null || phone.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content:
+                            Text('Seller phone number not available.')),
+                  );
+                  return;
+                }
+                final uri = Uri.parse('https://wa.me/$phone');
+                if (!await launchUrl(uri,
+                    mode: LaunchMode.externalApplication)) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Could not open WhatsApp.')),
+                    );
+                  }
+                }
               },
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.black87,
