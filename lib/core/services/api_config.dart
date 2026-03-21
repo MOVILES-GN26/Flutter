@@ -1,13 +1,23 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 /// Configuración central del API
 class ApiConfig {
   // Cuando el backend esté desplegado, reemplazar con la URL de AWS.
   static String get baseUrl {
-    if (Platform.isAndroid) return 'http://10.0.2.2:3000';
+    // Si es Web, usamos localhost porque el navegador corre en la msima máquina
+    if (kIsWeb) {
+      return 'http://localhost:3000';
+    }
+    // 10.0.2.2 es la IP especial en el emulador de Android para acceder al localhost del PC
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:3000';
+    }
+    // Para el simulador de iOS funciona localhost.
+    // Si usas un dispositivo físico real, debes poner la IP de tu computadora (ej: http://192.168.1.10:3000)
     return 'http://localhost:3000';
   }
-  
+
   // Endpoints disponibles
   static const String homeEndpoint = '/home';
   static const String refreshEndpoint = '/refresh';
