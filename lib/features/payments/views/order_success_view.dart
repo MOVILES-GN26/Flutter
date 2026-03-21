@@ -45,14 +45,15 @@ class _OrderSuccessViewState extends State<OrderSuccessView> {
   }
 
   Future<void> _openWhatsApp() async {
-    final phone = widget.sellerPhone;
-    if (phone == null || phone.isEmpty) {
+    final rawPhone = widget.sellerPhone;
+    if (rawPhone == null || rawPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Seller phone number not available.')),
       );
       return;
     }
 
+    final phone = rawPhone.startsWith('57') ? rawPhone : '57$rawPhone';
     final address = _addressController.text.trim();
     final String message;
     if (widget.deliveryOption == 'shipping' && address.isNotEmpty) {
@@ -79,25 +80,20 @@ class _OrderSuccessViewState extends State<OrderSuccessView> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final isShipping = widget.deliveryOption == 'shipping';
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
         ),
         centerTitle: true,
         title: const Text(
           'Order Successful',
-          style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
       ),
       body: SingleChildScrollView(
@@ -110,50 +106,47 @@ class _OrderSuccessViewState extends State<OrderSuccessView> {
             const SizedBox(height: 20),
 
             // ── Payment Verified ──
-            const Center(
+            Center(
               child: Text(
                 'Payment Verified!',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: cs.onSurface,
                 ),
               ),
             ),
             const SizedBox(height: 24),
 
             // ── Order Summary ──
-            const Text(
+            Text(
               'Order Summary',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: cs.onSurface,
               ),
             ),
-            const Divider(height: 20, color: Color(0xFFEEECE0)),
+            Divider(height: 20, color: cs.outlineVariant),
             Row(
               children: [
+                Expanded(child: _summaryField('Order ID', _shortOrderId, cs)),
                 Expanded(
-                  child: _summaryField('Order ID', _shortOrderId),
-                ),
-                Expanded(
-                  child: _summaryField('Date', _formatDate(widget.orderDate)),
-                ),
+                    child: _summaryField(
+                        'Date', _formatDate(widget.orderDate), cs)),
               ],
             ),
             const SizedBox(height: 16),
-            _summaryField(
-                'Total', '\$${widget.total.toStringAsFixed(2)}'),
+            _summaryField('Total', '\$${widget.total.toStringAsFixed(2)}', cs),
             const SizedBox(height: 24),
 
             // ── Delivery Option ──
-            const Text(
+            Text(
               'Delivery Option',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: cs.onSurface,
               ),
             ),
             const SizedBox(height: 12),
@@ -164,24 +157,24 @@ class _OrderSuccessViewState extends State<OrderSuccessView> {
                 controller: _addressController,
                 decoration: InputDecoration(
                   hintText: 'Enter Delivery Address',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFFB0AEA0),
+                  hintStyle: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.4),
                     fontSize: 14,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 14),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFFE0DDD0)),
+                    borderSide: BorderSide(color: cs.outlineVariant),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFFE0DDD0)),
+                    borderSide: BorderSide(color: cs.outlineVariant),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide:
-                        const BorderSide(color: Color(0xFFD4C84A), width: 1.5),
+                    borderSide: const BorderSide(
+                        color: Color(0xFFD4C84A), width: 1.5),
                   ),
                 ),
               ),
@@ -189,7 +182,7 @@ class _OrderSuccessViewState extends State<OrderSuccessView> {
             ],
 
             // ── Pickup / WhatsApp row ──
-            _buildWhatsAppSection(),
+            _buildWhatsAppSection(cs),
             const SizedBox(height: 32),
           ],
         ),
@@ -215,7 +208,7 @@ class _OrderSuccessViewState extends State<OrderSuccessView> {
     );
   }
 
-  Widget _summaryField(String label, String value) {
+  Widget _summaryField(String label, String value, ColorScheme cs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -230,29 +223,29 @@ class _OrderSuccessViewState extends State<OrderSuccessView> {
         const SizedBox(height: 2),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: cs.onSurface,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildWhatsAppSection() {
+  Widget _buildWhatsAppSection(ColorScheme cs) {
     return Row(
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Pickup at University?',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: cs.onSurface,
                 ),
               ),
               const SizedBox(height: 2),

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 /// Switches between light and dark theme based on the time of day.
 /// Dark mode is active from 18:00 to 05:59 (inclusive).
 class ThemeViewModel extends ChangeNotifier {
-  static const int _darkStart = 19; // 7 pm
+  static const int _darkStart = 18; // 6 pm
   static const int _lightStart = 6; //  6 am
 
   Timer? _timer;

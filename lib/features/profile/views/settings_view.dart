@@ -7,10 +7,7 @@ import '../../auth/views/login_view.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import 'edit_profile_view.dart';
 
-const _kBackground = Color(0xFFFCFAF7);
-const _kCardBg = Color(0xFFF2F2E8);
 const _kOlive = Color(0xFF8B7E3B);
-const _kYellow = Color(0xFFD4C84A);
 
 /// Settings screen (Profile architecture – MVVM via shared ProfileViewModel).
 class SettingsView extends StatelessWidget {
@@ -18,23 +15,18 @@ class SettingsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: _kBackground,
       appBar: AppBar(
-        backgroundColor: _kBackground,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1C1A0D)),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Settings',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1C1A0D),
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
       body: Consumer<ProfileViewModel>(
@@ -66,12 +58,14 @@ class SettingsView extends StatelessWidget {
               const SizedBox(height: 12),
 
               if (vm.listings.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Center(
                     child: Text(
                       "You don't have any listings yet.",
-                      style: TextStyle(color: Colors.black45, fontSize: 14),
+                      style: TextStyle(
+                          color: cs.onSurface.withValues(alpha: 0.45),
+                          fontSize: 14),
                     ),
                   ),
                 )
@@ -81,8 +75,7 @@ class SettingsView extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _ManageListingCard(
                       item: item,
-                      onDelete: () =>
-                          _confirmDelete(context, vm, item),
+                      onDelete: () => _confirmDelete(context, vm, item),
                     ),
                   ),
                 ),
@@ -112,60 +105,65 @@ class SettingsView extends StatelessWidget {
       BuildContext context, ProfileViewModel vm, Listing item) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Delete product',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: Color(0xFF1C1A0D),
-          ),
-        ),
-        content: const Text(
-          'Are you sure you want to delete this product? This action cannot be undone.',
-          style: TextStyle(fontSize: 14, color: Colors.black54),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.black54, fontSize: 14),
+      builder: (dialogContext) {
+        final cs = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Delete product',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: cs.onSurface,
             ),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              if (item.id == null) return;
-              final success = await vm.deleteProduct(item.id!);
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    success
-                        ? 'Listing deleted successfully.'
-                        : 'Failed to delete listing. Please try again.',
-                  ),
-                  backgroundColor: success ? _kOlive : Colors.redAccent,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              );
-            },
-            child: const Text(
-              'Delete',
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+          content: Text(
+            'Are you sure you want to delete this product? This action cannot be undone.',
+            style: TextStyle(
+                fontSize: 14, color: cs.onSurface.withValues(alpha: 0.6)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.6), fontSize: 14),
               ),
             ),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                if (item.id == null) return;
+                final success = await vm.deleteProduct(item.id!);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Listing deleted successfully.'
+                          : 'Failed to delete listing. Please try again.',
+                    ),
+                    backgroundColor: success ? _kOlive : Colors.redAccent,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              },
+              child: const Text(
+                'Delete',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -181,10 +179,10 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: Color(0xFF1C1A0D),
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
@@ -210,17 +208,18 @@ class _AccountTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: _kCardBg,
+          color: cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 22, color: Colors.black54),
+            Icon(icon, size: 22, color: cs.onSurface.withValues(alpha: 0.6)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -228,25 +227,24 @@ class _AccountTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1C1A0D),
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: _kOlive,
-                    ),
+                  const Text(
+                    'Manage your profile information',
+                    style: TextStyle(fontSize: 12, color: _kOlive),
                   ),
                 ],
               ),
             ),
             if (showArrow)
-              const Icon(Icons.chevron_right, size: 20, color: Colors.black38),
+              Icon(Icons.chevron_right,
+                  size: 20,
+                  color: cs.onSurface.withValues(alpha: 0.38)),
           ],
         ),
       ),
@@ -265,6 +263,7 @@ class _ManageListingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -272,7 +271,7 @@ class _ManageListingCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: _kCardBg,
+            color: cs.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
@@ -288,13 +287,13 @@ class _ManageListingCard extends StatelessWidget {
                       ? CachedNetworkImage(
                           imageUrl: item.imageUrls.first,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => const Center(
+                          placeholder: (_, __) => Center(
                             child: SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 1.5,
-                                color: _kYellow,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),
@@ -318,10 +317,10 @@ class _ManageListingCard extends StatelessWidget {
                   item.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1C1A0D),
+                    color: cs.onSurface,
                   ),
                 ),
               ),
@@ -340,8 +339,8 @@ class _ManageListingCard extends StatelessWidget {
             child: Container(
               width: 32,
               height: 32,
-              decoration: const BoxDecoration(
-                color: _kYellow,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -366,22 +365,23 @@ class _LogoutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: _kCardBg,
+          color: cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(14),
         ),
-        child: const Center(
+        child: Center(
           child: Text(
             'Logout',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1C1A0D),
+              color: cs.onSurface,
             ),
           ),
         ),

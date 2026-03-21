@@ -495,7 +495,7 @@ class _CatalogViewState extends State<CatalogView> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Near you \u2014 ${vm.nearestBuilding ?? "Campus"}',
+                        'Near you',
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,

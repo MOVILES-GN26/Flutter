@@ -7,8 +7,6 @@ import '../../catalog/views/product_detail_view.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import 'settings_view.dart';
 
-const _kBackground = Color(0xFFFCFAF7);
-const _kCardBg = Color(0xFFF2F2E8);
 const _kOlive = Color(0xFF8B7E3B);
 const _kOliveBorder = Color(0xFFD4C84A);
 
@@ -36,9 +34,7 @@ class _ProfileViewState extends State<ProfileView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBackground,
       appBar: AppBar(
-        backgroundColor: _kBackground,
         elevation: 0,
         centerTitle: true,
         title: const Text(
@@ -46,7 +42,6 @@ class _ProfileViewState extends State<ProfileView> {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1C1A0D),
           ),
         ),
         actions: [
@@ -79,7 +74,7 @@ class _ProfileViewState extends State<ProfileView> {
                   const SizedBox(height: 12),
                   Text(
                     vm.errorMessage ?? 'Something went wrong.',
-                    style: const TextStyle(color: Colors.black54),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
@@ -114,15 +109,15 @@ class _ProfileViewState extends State<ProfileView> {
                 SliverToBoxAdapter(child: _PersonalInfoSection(vm: vm)),
 
                 // ── My Listings header ──
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(20, 28, 20, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
                     child: Text(
                       'My Listings',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1C1A0D),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -131,15 +126,15 @@ class _ProfileViewState extends State<ProfileView> {
                 // ── Listings grid ──
                 if (vm.listings.isEmpty &&
                     vm.status == ProfileStatus.loaded)
-                  const SliverToBoxAdapter(
+                  SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 32),
                       child: Center(
                         child: Text(
                           "You haven't posted any listings yet.",
                           style: TextStyle(
-                            color: Colors.black45,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
                             fontSize: 14,
                           ),
                         ),
@@ -217,10 +212,10 @@ class _UserHeader extends StatelessWidget {
           // Name
           Text(
             vm.name?.isNotEmpty == true ? vm.name! : '—',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1C1A0D),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           // Major
@@ -255,12 +250,12 @@ class _PersonalInfoSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Personal Info',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1C1A0D),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 12),
@@ -316,12 +311,12 @@ class _InfoTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: _kCardBg,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 22, color: Colors.black54),
+          Icon(icon, size: 22, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -329,17 +324,17 @@ class _InfoTile extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Colors.black45,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF1C1A0D),
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w500,
                   ),
                   maxLines: 1,
@@ -412,10 +407,10 @@ class _ListingCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1C1A0D),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

@@ -6,6 +6,8 @@ import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../payments/views/complete_payment_view.dart';
+import 'seller_profile_view.dart';
+import '../../profile/views/profile_view.dart';
 
 ///
 /// Receives a [Listing] and displays its full information:
@@ -273,7 +275,26 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: () {
-                  // TODO: Navigate to seller profile using item.sellerId
+                  if (_isOwner) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ProfileView()),
+                    );
+                    return;
+                  }
+                  if (widget.item.sellerId == null) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SellerProfileView(
+                        sellerId: widget.item.sellerId!,
+                        sellerName: widget.item.sellerName,
+                        sellerMajor: widget.item.sellerMajor,
+                        sellerAvatarUrl: widget.item.sellerAvatarUrl,
+                        sellerPhone: widget.item.sellerPhone,
+                      ),
+                    ),
+                  );
                 },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
