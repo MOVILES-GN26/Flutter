@@ -97,26 +97,21 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final seller = widget.item;
     final nequi = seller.sellerPhone ?? '—';
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
         title: const Text(
           'Complete Purchase',
-          style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
       ),
       body: Column(
@@ -128,38 +123,38 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Product card ──
-                  _buildProductCard(),
+                  _buildProductCard(cs),
                   const SizedBox(height: 20),
 
                   // ── Delivery option selector ──
-                  _buildDeliverySelector(),
+                  _buildDeliverySelector(cs),
                   const SizedBox(height: 20),
 
                   // ── Proof of Payment ──
-                  const Text(
+                  Text(
                     'Proof of Payment',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildUploadBox(),
+                  _buildUploadBox(cs),
                   const SizedBox(height: 20),
 
                   // ── Payment instructions ──
-                  const Text(
+                  Text(
                     'Transfer the money to the seller\'s account.',
-                    style: TextStyle(fontSize: 14, color: Colors.black87),
+                    style: TextStyle(fontSize: 14, color: cs.onSurface),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'NEQUI: $nequi',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -169,13 +164,13 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
           ),
 
           // ── Submit button ──
-          _buildSubmitButton(),
+          _buildSubmitButton(cs),
         ],
       ),
     );
   }
 
-  Widget _buildProductCard() {
+  Widget _buildProductCard(ColorScheme cs) {
     final item = widget.item;
     return Row(
       children: [
@@ -185,10 +180,10 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
             children: [
               Text(
                 item.title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: cs.onSurface,
                 ),
               ),
               const SizedBox(height: 4),
@@ -234,41 +229,41 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
     );
   }
 
-  Widget _buildDeliverySelector() {
+  Widget _buildDeliverySelector(ColorScheme cs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Delivery Option',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: cs.onSurface,
           ),
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            _deliveryChip('pickup', 'Pickup at University'),
+            _deliveryChip('pickup', 'Pickup at University', cs),
             const SizedBox(width: 10),
-            _deliveryChip('shipping', 'Shipping'),
+            _deliveryChip('shipping', 'Shipping', cs),
           ],
         ),
       ],
     );
   }
 
-  Widget _deliveryChip(String value, String label) {
+  Widget _deliveryChip(String value, String label, ColorScheme cs) {
     final selected = _deliveryOption == value;
     return GestureDetector(
       onTap: () => setState(() => _deliveryOption = value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFD4C84A) : const Color(0xFFF5F4EE),
+          color: selected ? const Color(0xFFD4C84A) : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? const Color(0xFFD4C84A) : const Color(0xFFE0DDD0),
+            color: selected ? const Color(0xFFD4C84A) : cs.outlineVariant,
           ),
         ),
         child: Text(
@@ -283,7 +278,7 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
     );
   }
 
-  Widget _buildUploadBox() {
+  Widget _buildUploadBox(ColorScheme cs) {
     final hasFile = _proofFile != null;
     return GestureDetector(
       onTap: _pickImage,
@@ -293,11 +288,11 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: const Color(0xFFCCCAB8),
+            color: cs.outlineVariant,
             style: BorderStyle.solid,
             width: 1.5,
           ),
-          color: const Color(0xFFFAF9F4),
+          color: cs.surfaceContainerHighest,
         ),
         child: Column(
           children: [
@@ -313,13 +308,13 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: hasFile ? Colors.green.shade700 : Colors.black87,
+                color: hasFile ? Colors.green.shade700 : cs.onSurface,
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              hasFile ? 'Tap to change' : 'Comprobante de Pago',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF8B7E3B)),
+            const Text(
+              'Comprobante de Pago',
+              style: TextStyle(fontSize: 12, color: Color(0xFF8B7E3B)),
             ),
             const SizedBox(height: 14),
             if (!hasFile)
@@ -327,16 +322,16 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cs.surface,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFE0DDD0)),
+                  border: Border.all(color: cs.outlineVariant),
                 ),
-                child: const Text(
+                child: Text(
                   'Upload',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: cs.onSurface,
                   ),
                 ),
               ),
@@ -346,10 +341,10 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
     );
   }
 
-  Widget _buildSubmitButton() {
+  Widget _buildSubmitButton(ColorScheme cs) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-      color: Colors.white,
+      color: cs.surface,
       child: SizedBox(
         width: double.infinity,
         height: 52,

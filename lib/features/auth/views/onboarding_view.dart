@@ -65,7 +65,6 @@ class _OnboardingViewState extends State<OnboardingView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -96,19 +95,19 @@ class _OnboardingViewState extends State<OnboardingView> {
                             Text(
                               _onboardingData[index]['title']!,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 16),
                             Text(
                               _onboardingData[index]['subtitle']!,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.black,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                 height: 1.5,
                               ),
                             ),
@@ -134,7 +133,7 @@ class _OnboardingViewState extends State<OnboardingView> {
                   decoration: BoxDecoration(
                     color: _currentPage == index
                         ? const Color(0xFFEDE05E)
-                        : const Color(0xFFE8E5D1),
+                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(5),
                   ),
                 ),

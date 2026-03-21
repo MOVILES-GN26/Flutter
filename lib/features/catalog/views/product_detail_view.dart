@@ -6,6 +6,8 @@ import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../payments/views/complete_payment_view.dart';
+import 'seller_profile_view.dart';
+import '../../profile/views/profile_view.dart';
 
 ///
 /// Receives a [Listing] and displays its full information:
@@ -73,19 +75,17 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'Product Details',
           style: TextStyle(
-            color: Colors.black87,
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
@@ -160,10 +160,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         // ── Title ──
                         Text(
                           widget.item.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -205,20 +205,20 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         ],
 
                         // ── Description ──
-                        const Text(
+                        Text(
                           'Description',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           widget.item.description,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                             height: 1.5,
                           ),
                         ),
@@ -249,12 +249,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Seller Information',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               Text(
@@ -275,9 +275,28 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: () {
-                  // TODO: Navigate to seller profile using item.sellerId
+                  if (_isOwner) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ProfileView()),
+                    );
+                    return;
+                  }
+                  if (widget.item.sellerId == null) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SellerProfileView(
+                        sellerId: widget.item.sellerId!,
+                        sellerName: widget.item.sellerName,
+                        sellerMajor: widget.item.sellerMajor,
+                        sellerAvatarUrl: widget.item.sellerAvatarUrl,
+                        sellerPhone: widget.item.sellerPhone,
+                      ),
+                    ),
+                  );
                 },
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
@@ -285,11 +304,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward, size: 14, color: Colors.black87),
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_forward, size: 14, color: Theme.of(context).colorScheme.onSurface),
                   ],
                 ),
               ),
@@ -316,7 +335,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -389,7 +408,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                 }
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.black87,
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
                 side: const BorderSide(color: Color(0xFFE8E5D1)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(25),

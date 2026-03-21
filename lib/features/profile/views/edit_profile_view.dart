@@ -6,10 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/uniandes_majors.dart';
 import '../viewmodels/profile_viewmodel.dart';
 
-const _kBackground = Color(0xFFFCFAF7);
-const _kCardBg = Color(0xFFF2F2E8);
 const _kOlive = Color(0xFF8B7E3B);
-const _kYellow = Color(0xFFD4C84A);
 
 /// Edit Profile screen – lets the user update name, major, password and avatar.
 class EditProfileView extends StatefulWidget {
@@ -127,22 +124,16 @@ class _EditProfileViewState extends State<EditProfileView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBackground,
       appBar: AppBar(
-        backgroundColor: _kBackground,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1C1A0D)),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Edit Profile',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1C1A0D),
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
       body: Consumer<ProfileViewModel>(
@@ -190,17 +181,17 @@ class _EditProfileViewState extends State<EditProfileView> {
                     keyboardType: TextInputType.phone,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     maxLength: 10,
-                    style: const TextStyle(fontSize: 15, color: Color(0xFF1C1A0D)),
+                    style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
                       hintText: 'Phone number (10 digits)',
-                      hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
+                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
                       counterText: '',
                       filled: true,
-                      fillColor: _kCardBg,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _kYellow, width: 1.5)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5)),
                       errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.redAccent, width: 1)),
                       focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.redAccent, width: 1.5)),
                     ),
@@ -274,8 +265,8 @@ class _EditProfileViewState extends State<EditProfileView> {
               height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _kCardBg,
-                border: Border.all(color: _kYellow.withAlpha(100), width: 2),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.39), width: 2),
               ),
               child: ClipOval(
                 child: _pickedImage != null
@@ -293,7 +284,7 @@ class _EditProfileViewState extends State<EditProfileView> {
               height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.black.withAlpha(50),
+                color: Colors.black.withValues(alpha: 0.2),
               ),
               child: const Icon(Icons.camera_alt_outlined,
                   size: 28, color: Colors.white),
@@ -315,12 +306,12 @@ class _EditProfileViewState extends State<EditProfileView> {
       controller: controller,
       validator: validator,
       keyboardType: keyboardType,
-      style: const TextStyle(fontSize: 15, color: Color(0xFF1C1A0D)),
+      style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
+        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
         filled: true,
-        fillColor: _kCardBg,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
@@ -333,7 +324,7 @@ class _EditProfileViewState extends State<EditProfileView> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _kYellow, width: 1.5),
+          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -359,18 +350,18 @@ class _EditProfileViewState extends State<EditProfileView> {
       controller: controller,
       obscureText: obscure,
       validator: validator,
-      style: const TextStyle(fontSize: 15, color: Color(0xFF1C1A0D)),
+      style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
+        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
         filled: true,
-        fillColor: _kCardBg,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         suffixIcon: IconButton(
           icon: Icon(
             obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: Colors.black38,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
             size: 20,
           ),
           onPressed: onToggle,
@@ -385,7 +376,7 @@ class _EditProfileViewState extends State<EditProfileView> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _kYellow, width: 1.5),
+          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -408,7 +399,7 @@ class _EditProfileViewState extends State<EditProfileView> {
           padding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: _kCardBg,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: Colors.transparent),
           ),
@@ -416,12 +407,12 @@ class _EditProfileViewState extends State<EditProfileView> {
             child: DropdownButtonFormField<String>(
               value: _selectedMajor,
               isExpanded: true,
-              hint: const Text(
+              hint: Text(
                 'Select major',
-                style: TextStyle(color: Colors.black38, fontSize: 14),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
               ),
-              icon: const Icon(Icons.keyboard_arrow_down,
-                  color: Colors.black38),
+              icon: Icon(Icons.keyboard_arrow_down,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)),
               decoration: const InputDecoration(
                 labelText: 'Major',
                 labelStyle: TextStyle(
@@ -435,9 +426,9 @@ class _EditProfileViewState extends State<EditProfileView> {
                   .map((m) => DropdownMenuItem(
                         value: m,
                         child: Text(m,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 14,
-                                color: Color(0xFF1C1A0D))),
+                                color: Theme.of(context).colorScheme.onSurface)),
                       ))
                   .toList(),
               onChanged: (v) => setState(() => _selectedMajor = v),
@@ -459,9 +450,9 @@ class _EditProfileViewState extends State<EditProfileView> {
       child: ElevatedButton(
         onPressed: _isSaving ? null : _save,
         style: ElevatedButton.styleFrom(
-          backgroundColor: _kYellow,
+          backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: _kYellow.withAlpha(120),
+          disabledBackgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.47),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -500,10 +491,10 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w600,
-        color: Color(0xFF1C1A0D),
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
