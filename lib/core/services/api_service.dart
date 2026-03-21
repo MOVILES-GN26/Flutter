@@ -271,6 +271,45 @@ class ApiService {
     }
   }
 
+  /// Registers a view interaction for a product.
+  Future<void> registerView(String productId) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.interactionsViewEndpoint}'),
+        headers: token != null
+            ? ApiConfig.authHeaders(token)
+            : ApiConfig.defaultHeaders,
+        body: jsonEncode({'product_id': productId}),
+      ).timeout(ApiConfig.connectionTimeout);
+    } catch (e) {
+      debugPrint('[registerView] exception: $e');
+    }
+  }
+
+  /// Returns the stats (total views, etc.) for a product.
+  Future<Map<String, dynamic>?> getProductStats(String productId) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      final uri = Uri.parse(
+          '${ApiConfig.baseUrl}${ApiConfig.interactionsStatsEndpoint(productId)}');
+      final response = await http.get(
+        uri,
+        headers: token != null
+            ? ApiConfig.authHeaders(token)
+            : ApiConfig.defaultHeaders,
+      ).timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[getProductStats] exception: $e');
+      return null;
+    }
+  }
+
   /// Fetch the most recent listings for the Home screen.
   Future<List<Listing>> getRecentProducts() async {
     try {

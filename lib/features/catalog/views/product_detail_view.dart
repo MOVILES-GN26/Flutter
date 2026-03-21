@@ -1,14 +1,72 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/models/listing.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/services/storage_service.dart';
 
 ///
 /// Receives a [Listing] and displays its full information:
 /// hero image, title, price, seller info, description, and action buttons.
-class ProductDetailView extends StatelessWidget {
+class ProductDetailView extends StatefulWidget {
   final Listing item;
 
   const ProductDetailView({super.key, required this.item});
+
+  @override
+  State<ProductDetailView> createState() => _ProductDetailViewState();
+}
+
+class _ProductDetailViewState extends State<ProductDetailView> {
+  final ApiService _apiService = ApiService();
+  final StorageService _storageService = StorageService();
+  int? _viewCount;
+  bool _isOwner = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _registerAndFetchViews();
+  }
+
+  Future<void> _registerAndFetchViews() async {
+    final id = widget.item.id;
+    if (id == null) return;
+
+    final currentUserId = await _getCurrentUserId();
+    final isOwner = currentUserId != null && currentUserId == widget.item.sellerId;
+
+    if (mounted) setState(() => _isOwner = isOwner);
+
+    if (!isOwner) {
+      await _apiService.registerView(id);
+    } else {
+      final stats = await _apiService.getProductStats(id);
+      if (stats != null && mounted) {
+        setState(() {
+          _viewCount = stats['total_views'] as int? ??
+              stats['views'] as int? ??
+              stats['count'] as int?;
+        });
+      }
+    }
+  }
+
+  Future<String?> _getCurrentUserId() async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return null;
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final payload = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      return data['sub'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,22 +97,55 @@ class ProductDetailView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Product Image ──
-                  Container(
-                    width: double.infinity,
-                    height: 280,
-                    color: const Color(0xFFF5ECCF),
-                    child: item.imageUrls.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: item.imageUrls.first,
-                            fit: BoxFit.cover,
-                            placeholder: (_, _) => const Center(
-                              child: CircularProgressIndicator(
-                                  color: Color(0xFFD4C84A)),
+                  Stack(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        height: 280,
+                        color: const Color(0xFFF5ECCF),
+                        child: widget.item.imageUrls.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: widget.item.imageUrls.first,
+                                fit: BoxFit.cover,
+                                placeholder: (_, _) => const Center(
+                                  child: CircularProgressIndicator(
+                                      color: Color(0xFFD4C84A)),
+                                ),
+                                errorWidget: (_, _, _) =>
+                                    _buildImagePlaceholder(),
+                              )
+                            : _buildImagePlaceholder(),
+                      ),
+                      if (_isOwner && _viewCount != null)
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                            errorWidget: (_, _, _) =>
-                                _buildImagePlaceholder(),
-                          )
-                        : _buildImagePlaceholder(),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.visibility_outlined,
+                                    size: 15, color: Colors.white),
+                                const SizedBox(width: 5),
+                                Text(
+                                  '$_viewCount views',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
 
                   Padding(
@@ -66,7 +157,7 @@ class ProductDetailView extends StatelessWidget {
 
                         // ── Title ──
                         Text(
-                          item.title,
+                          widget.item.title,
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -77,7 +168,7 @@ class ProductDetailView extends StatelessWidget {
 
                         // ── Price ──
                         Text(
-                          '\$${item.price.toStringAsFixed(0)}',
+                          '\$${widget.item.price.toStringAsFixed(0)}',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
@@ -91,7 +182,7 @@ class ProductDetailView extends StatelessWidget {
                         const SizedBox(height: 24),
 
                         // ── Location ──
-                        if (item.buildingLocation.isNotEmpty) ...[
+                        if (widget.item.buildingLocation.isNotEmpty) ...[
                           Row(
                             children: [
                               const Icon(Icons.location_on_outlined,
@@ -99,7 +190,7 @@ class ProductDetailView extends StatelessWidget {
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  item.buildingLocation,
+                                  widget.item.buildingLocation,
                                   style: const TextStyle(
                                     fontSize: 14,
                                     color: Color(0xFF96914F),
@@ -122,7 +213,7 @@ class ProductDetailView extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          item.description,
+                          widget.item.description,
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.black87,
@@ -147,8 +238,8 @@ class ProductDetailView extends StatelessWidget {
 
   // ── Seller section ──
   Widget _buildSellerSection(BuildContext context) {
-    final sellerName = item.sellerName ?? 'Unknown Seller';
-    final sellerMajor = item.sellerMajor ?? '';
+    final sellerName = widget.item.sellerName ?? 'Unknown Seller';
+    final sellerMajor = widget.item.sellerMajor ?? '';
 
     return Row(
       children: [
@@ -207,10 +298,10 @@ class ProductDetailView extends StatelessWidget {
         CircleAvatar(
           radius: 30,
           backgroundColor: const Color(0xFFF5ECCF),
-          backgroundImage: item.sellerAvatarUrl != null
-              ? CachedNetworkImageProvider(item.sellerAvatarUrl!)
+          backgroundImage: widget.item.sellerAvatarUrl != null
+              ? CachedNetworkImageProvider(widget.item.sellerAvatarUrl!)
               : null,
-          child: item.sellerAvatarUrl == null
+          child: widget.item.sellerAvatarUrl == null
               ? const Icon(Icons.person, size: 30, color: Color(0xFF8B7E3B))
               : null,
         ),
