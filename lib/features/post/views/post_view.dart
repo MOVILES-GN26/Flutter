@@ -118,10 +118,9 @@ class _PostViewState extends State<PostView> {
 
         return Scaffold(
           appBar: AppBar(
-            backgroundColor: const Color(0xFFFCFAF7),
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.close, color: Colors.black87),
+              icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface),
               onPressed: () {
                 // If in a navigation context we can pop, otherwise do nothing
                 if (Navigator.of(context).canPop()) {
@@ -130,10 +129,10 @@ class _PostViewState extends State<PostView> {
               },
             ),
             centerTitle: true,
-            title: const Text(
+            title: Text(
               'Post an Item',
               style: TextStyle(
-                color: Colors.black87,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               ),
@@ -294,11 +293,11 @@ class _PostViewState extends State<PostView> {
                           controller: controller,
                           focusNode: focusNode,
                           maxLength: 50,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'Category',
                             counterText: '',
                             suffixIcon: Icon(Icons.arrow_drop_down,
-                                color: Colors.grey),
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                           ),
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) {
@@ -376,12 +375,12 @@ class _PostViewState extends State<PostView> {
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? const Color(0xFFF5ECCF)
-                                  : const Color(0xFFF2F2E8),
+                                  : Theme.of(context).colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: isSelected
                                     ? const Color(0xFFD4C84A)
-                                    : const Color(0xFFE8E5D1),
+                                    : Theme.of(context).colorScheme.outlineVariant,
                               ),
                             ),
                             child: Text(
@@ -393,7 +392,7 @@ class _PostViewState extends State<PostView> {
                                     : FontWeight.normal,
                                 color: isSelected
                                     ? const Color(0xFF8B7E3B)
-                                    : Colors.black87,
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -422,11 +421,11 @@ class _PostViewState extends State<PostView> {
                           controller: controller,
                           focusNode: focusNode,
                           maxLength: 120,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'Building Location',
                             counterText: '',
                             suffixIcon: Icon(Icons.arrow_drop_down,
-                                color: Colors.grey),
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                           ),
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) {
@@ -519,27 +518,28 @@ class _PostViewState extends State<PostView> {
                     const SizedBox(height: 8),
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5ECCF),
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE8E5D1)),
+                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String?>(
                           isExpanded: true,
                           value: vm.selectedStoreId,
-                          icon: const Icon(Icons.arrow_drop_down,
-                              color: Colors.black54),
+                          dropdownColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          icon: Icon(Icons.arrow_drop_down,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
                           onChanged: (value) => vm.selectStore(value),
                           items: [
                             DropdownMenuItem<String?>(
                               value: null,
                               child: Row(
-                                children: const [
+                                children: [
                                   Icon(Icons.person_outline,
-                                      size: 20, color: Colors.black54),
-                                  SizedBox(width: 10),
-                                  Text('Personal Profile',
+                                      size: 20, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+                                  const SizedBox(width: 10),
+                                  const Text('Personal Profile',
                                       style: TextStyle(fontSize: 14)),
                                 ],
                               ),
@@ -549,8 +549,8 @@ class _PostViewState extends State<PostView> {
                                 value: store['id'] as String,
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.storefront_outlined,
-                                        size: 20, color: Colors.black54),
+                                    Icon(Icons.storefront_outlined,
+                                        size: 20, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Text(
@@ -590,12 +590,12 @@ class _PostViewState extends State<PostView> {
                             ? null
                             : () => _handlePublish(vm),
                         child: vm.status == PostStatus.loading
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 22,
                                 height: 22,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.5,
-                                  color: Colors.black54,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                                 ),
                               )
                             : const Text('Publish'),

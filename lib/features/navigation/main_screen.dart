@@ -63,7 +63,7 @@ class _MainScreenState extends State<MainScreen> {
         currentIndex: _currentIndex,
         onTap: _onTabTap,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.black,
+        selectedItemColor: Theme.of(context).colorScheme.onSurface,
         unselectedItemColor: const Color(0xFF99944D),
         items: [
           BottomNavigationBarItem(
@@ -71,7 +71,9 @@ class _MainScreenState extends State<MainScreen> {
               'assets/icons/home.png',
               width: 24,
               height: 24,
-              color: _currentIndex == 0 ? Colors.black : null,
+              color: _currentIndex == 0
+                  ? Theme.of(context).colorScheme.onSurface
+                  : null,
             ),
             label: 'Home',
           ),
@@ -80,7 +82,9 @@ class _MainScreenState extends State<MainScreen> {
               'assets/icons/catalog.png',
               width: 24,
               height: 24,
-              color: _currentIndex == 1 ? Colors.black : null,
+              color: _currentIndex == 1
+                  ? Theme.of(context).colorScheme.onSurface
+                  : null,
             ),
             label: 'Catalog',
           ),
@@ -89,7 +93,9 @@ class _MainScreenState extends State<MainScreen> {
               'assets/icons/post.png',
               width: 24,
               height: 24,
-              color: _currentIndex == 2 ? Colors.black : null,
+              color: _currentIndex == 2
+                  ? Theme.of(context).colorScheme.onSurface
+                  : null,
             ),
             label: 'Post',
           ),
@@ -98,7 +104,9 @@ class _MainScreenState extends State<MainScreen> {
               'assets/icons/favorites.png',
               width: 24,
               height: 24,
-              color: _currentIndex == 3 ? Colors.black : null,
+              color: _currentIndex == 3
+                  ? Theme.of(context).colorScheme.onSurface
+                  : null,
             ),
             label: 'Favorites',
           ),
@@ -107,7 +115,9 @@ class _MainScreenState extends State<MainScreen> {
               'assets/icons/profile.png',
               width: 24,
               height: 24,
-              color: _currentIndex == 4 ? Colors.black : null,
+              color: _currentIndex == 4
+                  ? Theme.of(context).colorScheme.onSurface
+                  : null,
             ),
             label: 'Profile',
           ),

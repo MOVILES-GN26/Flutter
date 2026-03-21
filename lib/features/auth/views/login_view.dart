@@ -66,7 +66,6 @@ class _LoginViewState extends State<LoginView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Consumer<AuthViewModel>(
           builder: (context, authVm, _) {
@@ -87,19 +86,18 @@ class _LoginViewState extends State<LoginView> {
                             .headlineMedium
                             ?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
                             ),
                       ),
                     ),
                     const SizedBox(height: 48),
 
                     // Email label
-                    const Text(
+                    Text(
                       'Email',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -125,12 +123,12 @@ class _LoginViewState extends State<LoginView> {
                     const SizedBox(height: 24),
 
                     // Password label
-                    const Text(
+                    Text(
                       'Password',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -235,13 +233,13 @@ class _LoginViewState extends State<LoginView> {
                       child: GestureDetector(
                         onTap: _navigateToRegister,
                         child: RichText(
-                          text: const TextSpan(
+                          text: TextSpan(
                             text: "Don't have an account? ",
                             style: TextStyle(
-                              color: Colors.grey,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                               fontSize: 13,
                             ),
-                            children: [
+                            children: const [
                               TextSpan(
                                 text: 'Sign Up',
                                 style: TextStyle(

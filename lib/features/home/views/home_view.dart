@@ -150,7 +150,7 @@ class _HomeViewState extends State<HomeView> {
       padding: const EdgeInsets.all(16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
@@ -168,7 +168,7 @@ class _HomeViewState extends State<HomeView> {
                 'assets/icons/magnifying_glass.png',
                 width: 24,
                 height: 24,
-                color: Colors.grey,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             Expanded(
@@ -221,11 +221,11 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 12),
           if (trending.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 'No trending categories yet — start browsing!',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
               ),
             )
           else
@@ -318,7 +318,7 @@ class _HomeViewState extends State<HomeView> {
               height: 160,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: Colors.grey.shade200,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -328,24 +328,24 @@ class _HomeViewState extends State<HomeView> {
                         fit: BoxFit.cover,
                         width: double.infinity,
                         placeholder: (_, _) => Container(
-                          color: Colors.grey.shade200,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           child: const Center(
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Color(0xFFD4C84A)),
                           ),
                         ),
                         errorWidget: (_, _, _) => Container(
-                          color: Colors.grey.shade300,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           child: Icon(Icons.image,
-                              size: 60, color: Colors.grey.shade400),
+                              size: 60, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
                         ),
                       )
                     : Container(
-                        color: Colors.grey.shade300,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         child: Icon(
                           Icons.image,
                           size: 60,
-                          color: Colors.grey.shade400,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                         ),
                       ),
               ),
@@ -363,9 +363,9 @@ class _HomeViewState extends State<HomeView> {
             const SizedBox(height: 4),
             Text(
               '\$${item.price.toStringAsFixed(0)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],

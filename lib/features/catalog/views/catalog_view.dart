@@ -6,7 +6,6 @@ import '../../../core/models/listing.dart';
 import '../viewmodels/catalog_viewmodel.dart';
 import 'product_detail_view.dart';
 
-const _fillColor = Color(0xFFF2F2E8);
 
 /// Catalog screen matching the Figma design with Rappi-inspired category strip.
 class CatalogView extends StatefulWidget {
@@ -176,7 +175,7 @@ class _CatalogViewState extends State<CatalogView> {
                                   },
                                   selectedColor:
                                       const Color(0xFFF5ECCF),
-                                  backgroundColor: _fillColor,
+                                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                   side: BorderSide(
                                     color: isSelected
                                         ? const Color(0xFFD4C84A)
@@ -185,7 +184,7 @@ class _CatalogViewState extends State<CatalogView> {
                                   labelStyle: TextStyle(
                                     color: isSelected
                                         ? const Color(0xFF8B7E3B)
-                                        : Colors.black87,
+                                        : Theme.of(context).colorScheme.onSurface,
                                     fontSize: 13,
                                   ),
                                   shape: RoundedRectangleBorder(
@@ -221,7 +220,7 @@ class _CatalogViewState extends State<CatalogView> {
                                   },
                                   selectedColor:
                                       const Color(0xFFF5ECCF),
-                                  backgroundColor: _fillColor,
+                                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                   side: BorderSide(
                                     color: isSelected
                                         ? const Color(0xFFD4C84A)
@@ -230,7 +229,7 @@ class _CatalogViewState extends State<CatalogView> {
                                   labelStyle: TextStyle(
                                     color: isSelected
                                         ? const Color(0xFF8B7E3B)
-                                        : Colors.black87,
+                                        : Theme.of(context).colorScheme.onSurface,
                                     fontSize: 13,
                                   ),
                                   shape: RoundedRectangleBorder(
@@ -267,7 +266,7 @@ class _CatalogViewState extends State<CatalogView> {
                                   },
                                   selectedColor:
                                       const Color(0xFFF5ECCF),
-                                  backgroundColor: _fillColor,
+                                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                   side: BorderSide(
                                     color: isSelected
                                         ? const Color(0xFFD4C84A)
@@ -276,7 +275,7 @@ class _CatalogViewState extends State<CatalogView> {
                                   labelStyle: TextStyle(
                                     color: isSelected
                                         ? const Color(0xFF8B7E3B)
-                                        : Colors.black87,
+                                        : Theme.of(context).colorScheme.onSurface,
                                     fontSize: 13,
                                   ),
                                   shape: RoundedRectangleBorder(
@@ -537,15 +536,15 @@ class _CatalogViewState extends State<CatalogView> {
                 ),
               ),
             ),
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(24, 8, 24, 4),
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 4),
                 child: Text(
                   'All products',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -605,7 +604,7 @@ class _FilterIconButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: hasActiveFilters ? const Color(0xFFF5ECCF) : _fillColor,
+          color: hasActiveFilters ? const Color(0xFFF5ECCF) : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: hasActiveFilters
@@ -618,7 +617,7 @@ class _FilterIconButton extends StatelessWidget {
           size: 18,
           color: hasActiveFilters
               ? const Color(0xFF8B7E3B)
-              : Colors.black54,
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
         ),
       ),
     );
@@ -654,7 +653,7 @@ class _CategoryChip extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isSelected
                     ? const Color(0xFFF5ECCF)
-                    : _fillColor,
+                    : Theme.of(context).colorScheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected
@@ -669,7 +668,7 @@ class _CategoryChip extends StatelessWidget {
                   size: 22,
                   color: isSelected
                       ? const Color(0xFF8B7E3B)
-                      : Colors.black87,
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -685,7 +684,7 @@ class _CategoryChip extends StatelessWidget {
                     isSelected ? FontWeight.w600 : FontWeight.normal,
                 color: isSelected
                     ? const Color(0xFF8B7E3B)
-                    : Colors.black87,
+                    : Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -715,7 +714,7 @@ class _FilterButton extends StatelessWidget {
         padding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFF5ECCF) : _fillColor,
+          color: isActive ? const Color(0xFFF5ECCF) : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isActive
@@ -732,7 +731,7 @@ class _FilterButton extends StatelessWidget {
                 fontSize: 13,
                 color: isActive
                     ? const Color(0xFF8B7E3B)
-                    : Colors.black87,
+                    : Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(width: 4),
@@ -741,7 +740,7 @@ class _FilterButton extends StatelessWidget {
               size: 16,
               color: isActive
                   ? const Color(0xFF8B7E3B)
-                  : Colors.black54,
+                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
             ),
           ],
         ),
@@ -798,10 +797,10 @@ class _ProductCard extends StatelessWidget {
             item.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           Text(

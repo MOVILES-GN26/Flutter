@@ -30,19 +30,16 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
         title: const Text(
           'Reset Password',
           style: TextStyle(
-            color: Colors.black87,
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
@@ -64,12 +61,12 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                       color: Color(0xFF8B7E3B),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       'Check your email',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -78,7 +75,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                     const SizedBox(height: 32),
@@ -120,19 +117,19 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                       'Enter the email address associated with your account and we\'ll send you a link to reset your password.',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         height: 1.5,
                       ),
                     ),
                     const SizedBox(height: 32),
 
                     // Email label
-                    const Text(
+                    Text(
                       'Email',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -170,7 +167,6 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.black87,
                                 ),
                               )
                             : const Text('Send Reset Link'),
