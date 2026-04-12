@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../navigation/main_screen.dart';
-import 'forgot_password_view.dart';
 import 'register_view.dart';
 
 class LoginView extends StatefulWidget {
@@ -117,6 +116,9 @@ class _LoginViewState extends State<LoginView> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Email is required';
                         }
+                        if (!value.trim().endsWith('@uniandes.edu.co')) {
+                          return 'Must be a @uniandes.edu.co email';
+                        }
                         return null;
                       },
                     ),
@@ -161,33 +163,6 @@ class _LoginViewState extends State<LoginView> {
                       },
                     ),
                     const SizedBox(height: 8),
-
-                    // Forgot Password
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ForgotPasswordView(),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            color: Color(0xFF8B7E3B),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 32),
 
                     // Login button

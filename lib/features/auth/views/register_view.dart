@@ -117,6 +117,9 @@ class _RegisterViewState extends State<RegisterView> {
                       controller: _firstNameController,
                       textCapitalization: TextCapitalization.words,
                       maxLength: 50,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZÀ-ÿ\s'\-]")),
+                      ],
                       decoration: const InputDecoration(
                         hintText: 'First Name',
                         counterText: '',
@@ -142,6 +145,9 @@ class _RegisterViewState extends State<RegisterView> {
                       controller: _lastNameController,
                       textCapitalization: TextCapitalization.words,
                       maxLength: 50,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZÀ-ÿ\s'\-]")),
+                      ],
                       decoration: const InputDecoration(
                         hintText: 'Last Name',
                         counterText: '',
