@@ -155,9 +155,18 @@ class _EditProfileViewState extends State<EditProfileView> {
                   _buildTextField(
                     controller: _firstNameCtrl,
                     hint: 'First name',
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Please enter your first name'
-                        : null,
+                    maxLength: 50,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZÀ-ÿ\s'\-]")),
+                    ],
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Please enter your first name';
+                      if (v.trim().length < 2) return 'Must be at least 2 characters';
+                      if (!RegExp(r"^[a-zA-ZÀ-ÿ\s'-]+$").hasMatch(v.trim())) {
+                        return 'Only letters, spaces, hyphens and apostrophes';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 20),
 
@@ -167,9 +176,18 @@ class _EditProfileViewState extends State<EditProfileView> {
                   _buildTextField(
                     controller: _lastNameCtrl,
                     hint: 'Last name',
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Please enter your last name'
-                        : null,
+                    maxLength: 50,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZÀ-ÿ\s'\-]")),
+                    ],
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Please enter your last name';
+                      if (v.trim().length < 2) return 'Must be at least 2 characters';
+                      if (!RegExp(r"^[a-zA-ZÀ-ÿ\s'-]+$").hasMatch(v.trim())) {
+                        return 'Only letters, spaces, hyphens and apostrophes';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 20),
 
@@ -217,6 +235,13 @@ class _EditProfileViewState extends State<EditProfileView> {
                     obscure: _obscurePassword,
                     onToggle: () =>
                         setState(() => _obscurePassword = !_obscurePassword),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return null; // optional field
+                      if (v.length < 8) return 'Must be at least 8 characters';
+                      if (!RegExp(r'[A-Z]').hasMatch(v)) return 'Must contain at least one uppercase letter';
+                      if (!RegExp(r'[0-9]').hasMatch(v)) return 'Must contain at least one number';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 20),
 
@@ -301,15 +326,20 @@ class _EditProfileViewState extends State<EditProfileView> {
     required String hint,
     String? Function(String?)? validator,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
   }) {
     return TextFormField(
       controller: controller,
       validator: validator,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      maxLength: maxLength,
       style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
+        counterText: '',
         filled: true,
         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         contentPadding:

@@ -23,9 +23,8 @@ class _CatalogViewState extends State<CatalogView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final vm = context.read<CatalogViewModel>();
-      vm.loadProducts();
+      vm.loadProducts();   // already fetches trending in parallel
       vm.detectLocation();
-      vm.loadTrending();
     });
   }
 

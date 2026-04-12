@@ -234,6 +234,11 @@ class _PostViewState extends State<PostView> {
                       controller: _titleController,
                       maxLength: 50,
                       textCapitalization: TextCapitalization.sentences,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.deny(
+                          RegExp(r'[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FE0F}]', unicode: true),
+                        ),
+                      ],
                       decoration: const InputDecoration(
                         hintText: 'Title',
                         counterText: '',
@@ -256,6 +261,11 @@ class _PostViewState extends State<PostView> {
                       maxLength: 200,
                       maxLines: 4,
                       textCapitalization: TextCapitalization.sentences,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.deny(
+                          RegExp(r'[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FE0F}]', unicode: true),
+                        ),
+                      ],
                       decoration: const InputDecoration(
                         hintText: 'Description',
                         counterText: '',

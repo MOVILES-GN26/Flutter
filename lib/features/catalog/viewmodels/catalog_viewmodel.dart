@@ -95,21 +95,33 @@ class CatalogViewModel extends ChangeNotifier {
         .toList();
   }
 
-  /// Fetch products from the API with current filters applied.
+  /// Fetch products and trending categories in parallel.
+  /// Both complete before notifyListeners() is called, so the category
+  /// strip always renders already sorted by popularity.
   Future<void> loadProducts() async {
     _status = CatalogStatus.loading;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final data = await _apiService.getProducts(
-        search: _searchQuery.isNotEmpty ? _searchQuery : null,
-        category: _selectedCategory,
-        condition: _selectedCondition,
-        priceSort: _selectedPriceSort,
-      );
+      final results = await Future.wait([
+        _apiService.getProducts(
+          search: _searchQuery.isNotEmpty ? _searchQuery : null,
+          category: _selectedCategory,
+          condition: _selectedCondition,
+          priceSort: _selectedPriceSort,
+        ),
+        if (_trendingCategories.isEmpty) _apiService.getTrendingCategories(),
+      ]);
 
-      _products = data.map((json) => Listing.fromJson(json)).toList();
+      _products = (results[0] as List<Map<String, dynamic>>)
+          .map((json) => Listing.fromJson(json))
+          .toList();
+
+      if (_trendingCategories.isEmpty) {
+        _trendingCategories = results[1] as List<String>;
+      }
+
       _partitionNearbyProducts();
       _status = CatalogStatus.loaded;
     } catch (e) {
