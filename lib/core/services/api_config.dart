@@ -11,7 +11,7 @@ class ApiConfig {
     }
     // 10.0.2.2 es la IP especial en el emulador de Android para acceder al localhost del PC
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000';
+      return 'http://192.168.0.100:3000';
     }
     // Para el simulador de iOS funciona localhost.
     // Si usas un dispositivo físico real, debes poner la IP de tu computadora (ej: http://192.168.1.10:3000)
@@ -31,6 +31,9 @@ class ApiConfig {
   static const String trendingCategoriesEndpoint = '/trending/categories';
   static const String myStoresEndpoint = '/stores/my-stores';
   static const String interactionsViewEndpoint = '/interactions/view';
+  static const String favoritesEndpoint = '/users/me/favorites';
+  static String favoriteCountEndpoint(String productId) =>
+      '/products/$productId/favorites/count';
   static String interactionsStatsEndpoint(String productId) =>
       '/interactions/product/$productId/stats';
   

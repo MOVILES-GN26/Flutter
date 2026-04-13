@@ -22,13 +22,17 @@ class AuthViewModel extends ChangeNotifier {
   
   /// Perform login against the API.
   /// Shows specific error messages so the user knows what went wrong.
-  Future<void> login(String email, String password) async {
+  Future<void> login(
+    String email,
+    String password, {
+    String loginType = 'email-password',
+  }) async {
     _status = AuthStatus.loading;
     _errorMessage = null;
     notifyListeners();
     
     try {
-      final response = await _apiService.login(email, password);
+      final response = await _apiService.login(email, password, loginType: loginType);
       
       if (response != null && response['access_token'] != null) {
         await _storageService.saveAccessToken(response['access_token']);
