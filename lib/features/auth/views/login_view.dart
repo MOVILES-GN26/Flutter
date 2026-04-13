@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nfc_manager/nfc_manager.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../navigation/main_screen.dart';
@@ -17,6 +18,7 @@ class _LoginViewState extends State<LoginView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isNfcAvailable = false;
   late AuthViewModel _authViewModel;
 
   @override
@@ -26,6 +28,31 @@ class _LoginViewState extends State<LoginView> {
       _authViewModel = context.read<AuthViewModel>();
       _authViewModel.addListener(_onAuthChanged);
     });
+    _initNfc();
+  }
+
+  Future<void> _initNfc() async {
+    try {
+      final available = await NfcManager.instance.isAvailable();
+      if (!mounted) return;
+      setState(() => _isNfcAvailable = available);
+      if (available) _startNfcSession();
+    } catch (_) {
+    }
+  }
+
+  void _startNfcSession() {
+    NfcManager.instance.startSession(
+      onDiscovered: (NfcTag tag) async {
+        await NfcManager.instance.stopSession();
+        if (!mounted) return;
+        context.read<AuthViewModel>().login(
+          'prueba@uniandes.edu.co',
+          'MyPass123',
+          loginType: 'NFC',
+        );
+      },
+    );
   }
 
   void _onAuthChanged() {
@@ -43,6 +70,7 @@ class _LoginViewState extends State<LoginView> {
     _authViewModel.removeListener(_onAuthChanged);
     _emailController.dispose();
     _passwordController.dispose();
+    if (_isNfcAvailable) NfcManager.instance.stopSession();
     super.dispose();
   }
 
@@ -51,6 +79,7 @@ class _LoginViewState extends State<LoginView> {
       context.read<AuthViewModel>().login(
             _emailController.text.trim(),
             _passwordController.text,
+            loginType: 'email-password',
           );
     }
   }
@@ -89,6 +118,47 @@ class _LoginViewState extends State<LoginView> {
                       ),
                     ),
                     const SizedBox(height: 48),
+
+                    // NFC section
+                    Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        Text(
+                          'Tap your uniandes physical id in your cellphone for automatic login via NFC',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.65),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Separator
+                    Row(
+                      children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'or',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.45),
+                            ),
+                          ),
+                        ),
+                        const Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
 
                     // Email label
                     Text(

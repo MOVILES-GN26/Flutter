@@ -5,6 +5,7 @@ import 'core/auth_gate.dart';
 import 'core/viewmodels/theme_viewmodel.dart';
 import 'features/auth/viewmodels/auth_viewmodel.dart';
 import 'features/catalog/viewmodels/catalog_viewmodel.dart';
+import 'features/favorites/viewmodels/favorites_viewmodel.dart';
 import 'features/home/viewmodels/home_viewmodel.dart';
 import 'features/post/viewmodels/post_viewmodel.dart';
 import 'features/profile/viewmodels/profile_viewmodel.dart';
@@ -110,6 +111,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CatalogViewModel()),
         ChangeNotifierProvider(create: (_) => PostViewModel()),
         ChangeNotifierProvider(create: (_) => ProfileViewModel()),
+        ChangeNotifierProvider(create: (_) => FavoritesViewModel()),
       ],
       child: Consumer<ThemeViewModel>(
         builder: (_, themeVM, __) => MaterialApp(

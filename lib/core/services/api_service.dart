@@ -55,7 +55,11 @@ class ApiService {
   }
   
   /// Login del usuario
-  Future<Map<String, dynamic>?> login(String email, String password) async {
+  Future<Map<String, dynamic>?> login(
+    String email,
+    String password, {
+    String loginType = 'email-password',
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}'),
@@ -63,6 +67,7 @@ class ApiService {
         body: jsonEncode({
           'email': email,
           'password': password,
+          'login_type': loginType,
         }),
       ).timeout(ApiConfig.connectionTimeout);
 
@@ -518,4 +523,94 @@ class ApiService {
       return null;
     }
   }
-}
+  /// Add a product to the authenticated user's favorites. Returns true on success.
+  Future<bool> addFavorite(String productId) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return false;
+      final response = await http
+          .post(
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.favoritesEndpoint}/$productId'),
+            headers: ApiConfig.authHeaders(token),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+      return response.statusCode == 204 ||
+          response.statusCode == 200 ||
+          response.statusCode == 201;
+    } catch (e) {
+      debugPrint('[addFavorite] exception: $e');
+      return false;
+    }
+  }
+
+  /// Remove a product from the authenticated user's favorites. Returns true on success.
+  Future<bool> removeFavorite(String productId) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return false;
+      final response = await http
+          .delete(
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.favoritesEndpoint}/$productId'),
+            headers: ApiConfig.authHeaders(token),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+      return response.statusCode == 204 || response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[removeFavorite] exception: $e');
+      return false;
+    }
+  }
+
+  /// Fetch the authenticated user's favorite products.
+  Future<List<Listing>> getFavorites() async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return [];
+      final response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}${ApiConfig.favoritesEndpoint}'),
+            headers: ApiConfig.authHeaders(token),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return data
+              .map((e) => Listing.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[getFavorites] exception: $e');
+      return [];
+    }
+  }
+
+  /// Fetch how many users have favorited a product. No auth required.
+  Future<int?> getFavoritesCount(String productId) async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.favoriteCountEndpoint(productId)}'),
+            headers: ApiConfig.defaultHeaders,
+          )
+          .timeout(ApiConfig.connectionTimeout);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is int) return data;
+        if (data is Map) {
+          return data['count'] as int? ??
+              data['favorites_count'] as int? ??
+              data['total'] as int?;
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[getFavoritesCount] exception: $e');
+      return null;
+    }
+  }}

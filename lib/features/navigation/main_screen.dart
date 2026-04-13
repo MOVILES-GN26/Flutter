@@ -6,6 +6,7 @@ import '../catalog/views/catalog_view.dart';
 import '../catalog/viewmodels/catalog_viewmodel.dart';
 import '../post/views/post_view.dart';
 import '../favorites/views/favorites_view.dart';
+import '../favorites/viewmodels/favorites_viewmodel.dart';
 import '../profile/views/profile_view.dart';
 
 /// Pantalla principal con bottom navigation bar
@@ -39,6 +40,9 @@ class _MainScreenState extends State<MainScreen> {
     }
     if (index == 0 && _currentIndex != 0) {
       context.read<HomeViewModel>().loadHomeData();
+    }
+    if (index == 3 && _currentIndex != 3) {
+      context.read<FavoritesViewModel>().loadFavorites();
     }
 
     setState(() {

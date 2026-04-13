@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/storage_service.dart';
+import '../../favorites/viewmodels/favorites_viewmodel.dart';
 import '../../payments/views/complete_payment_view.dart';
 import 'seller_profile_view.dart';
 import '../../profile/views/profile_view.dart';
@@ -25,12 +27,19 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   final ApiService _apiService = ApiService();
   final StorageService _storageService = StorageService();
   int? _viewCount;
+  int? _favoritesCount;
   bool _isOwner = false;
 
   @override
   void initState() {
     super.initState();
     _registerAndFetchViews();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final favVm = context.read<FavoritesViewModel>();
+      if (favVm.status == FavoritesStatus.initial) {
+        favVm.loadFavorites();
+      }
+    });
   }
 
   Future<void> _registerAndFetchViews() async {
@@ -46,11 +55,15 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       await _apiService.registerView(id);
     } else {
       final stats = await _apiService.getProductStats(id);
-      if (stats != null && mounted) {
+      final favCount = await _apiService.getFavoritesCount(id);
+      if (mounted) {
         setState(() {
-          _viewCount = stats['total_views'] as int? ??
-              stats['views'] as int? ??
-              stats['count'] as int?;
+          if (stats != null) {
+            _viewCount = stats['total_views'] as int? ??
+                stats['views'] as int? ??
+                stats['count'] as int?;
+          }
+          _favoritesCount = favCount;
         });
       }
     }
@@ -74,6 +87,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
   @override
   Widget build(BuildContext context) {
+    final favVm = context.watch<FavoritesViewModel>();
+    final isFavorited =
+        !_isOwner && widget.item.id != null
+            ? favVm.isFavorited(widget.item.id!)
+            : false;
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -90,6 +109,25 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             fontSize: 20,
           ),
         ),
+        actions: [
+          if (!_isOwner && widget.item.id != null)
+            IconButton(
+              icon: Icon(
+                isFavorited ? Icons.favorite : Icons.favorite_border,
+                color: isFavorited ? Colors.red : null,
+              ),
+              tooltip: isFavorited
+                  ? 'Remove from favorites'
+                  : 'Add to favorites',
+              onPressed: () async {
+                if (isFavorited) {
+                  await favVm.removeFavorite(widget.item.id!);
+                } else {
+                  await favVm.addFavorite(widget.item);
+                }
+              },
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -118,33 +156,29 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                               )
                             : _buildImagePlaceholder(),
                       ),
-                      if (_isOwner && _viewCount != null)
+                      if (_isOwner &&
+                          (_viewCount != null || _favoritesCount != null))
                         Positioned(
                           top: 12,
                           right: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.visibility_outlined,
-                                    size: 15, color: Colors.white),
-                                const SizedBox(width: 5),
-                                Text(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_viewCount != null) ...[  
+                                _statBadge(
+                                  Icons.visibility_outlined,
                                   '$_viewCount views',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
                                 ),
+                                if (_favoritesCount != null)
+                                  const SizedBox(width: 6),
                               ],
-                            ),
+                              if (_favoritesCount != null)
+                                _statBadge(
+                                  Icons.favorite,
+                                  '$_favoritesCount favorites',
+                                  iconColor: Colors.red,
+                                ),
+                            ],
                           ),
                         ),
                     ],
@@ -418,6 +452,32 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                 'Contact Seller via WhatsApp',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statBadge(IconData icon, String text,
+      {Color iconColor = Colors.white}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: iconColor),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
