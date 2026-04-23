@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/local_db_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/preferences_service.dart';
 import '../../../core/constants/post_categories.dart';
 
 export '../../../core/constants/post_conditions.dart';
@@ -24,6 +26,15 @@ class CatalogViewModel extends ChangeNotifier {
   String? _selectedCategory;
   String? _selectedCondition;
   String? _selectedPriceSort;
+
+  CatalogViewModel() {
+    // Restore the user's last-used filters from disk so the catalog screen
+    // opens pre-filtered exactly as they left it on the previous session.
+    final prefs = PreferencesService.instance;
+    _selectedCategory = prefs.lastCatalogCategory;
+    _selectedCondition = prefs.lastCatalogCondition;
+    _selectedPriceSort = prefs.lastCatalogPriceSort;
+  }
 
   // ── Trending state ──
   List<String> _trendingCategories = [];
@@ -96,13 +107,33 @@ class CatalogViewModel extends ChangeNotifier {
   }
 
   /// Fetch products and trending categories in parallel.
-  /// Both complete before notifyListeners() is called, so the category
-  /// strip always renders already sorted by popularity.
+  ///
+  /// Stale-while-revalidate against sqflite:
+  ///   1. Run the same filter query against the local cache and emit those
+  ///      results immediately so the list paints without network latency.
+  ///   2. Hit the API. On success, replace the in-memory list and UPSERT
+  ///      every listing into the cache. On failure, keep the cached data
+  ///      and surface an error only if the cache was empty.
   Future<void> loadProducts() async {
-    _status = CatalogStatus.loading;
-    _errorMessage = null;
-    notifyListeners();
+    // ── 1. Cached results first ──
+    final cached = await LocalDbService.queryListings(
+      search: _searchQuery.isNotEmpty ? _searchQuery : null,
+      category: _selectedCategory,
+      condition: _selectedCondition,
+      priceSort: _selectedPriceSort,
+    );
+    if (cached.isNotEmpty) {
+      _products = cached;
+      _partitionNearbyProducts();
+      _status = CatalogStatus.loaded;
+      notifyListeners();
+    } else {
+      _status = CatalogStatus.loading;
+      _errorMessage = null;
+      notifyListeners();
+    }
 
+    // ── 2. Refresh from API ──
     try {
       final results = await Future.wait([
         _apiService.getProducts(
@@ -124,24 +155,40 @@ class CatalogViewModel extends ChangeNotifier {
 
       _partitionNearbyProducts();
       _status = CatalogStatus.loaded;
-    } catch (e) {
-      _errorMessage =
-          'Unable to load products. Please check your connection and try again.';
-      _status = CatalogStatus.error;
+
+      // Fire-and-forget: UI already has the data in memory.
+      LocalDbService.upsertListings(_products);
+    } catch (_) {
+      if (_products.isEmpty) {
+        _errorMessage =
+            'Unable to load products. Please check your connection and try again.';
+        _status = CatalogStatus.error;
+      } else {
+        _status = CatalogStatus.loaded;
+      }
     }
 
     notifyListeners();
   }
 
-  /// Update search query and reload.
+  /// Update search query and reload. Persists non-empty queries to the
+  /// local search history so the search bar can show recent terms.
   void setSearchQuery(String query) {
     _searchQuery = query;
+    if (query.trim().isNotEmpty) {
+      LocalDbService.recordSearch(query);
+    }
     loadProducts();
   }
+
+  /// Last [limit] distinct search terms the user has typed, newest first.
+  Future<List<String>> getRecentSearches({int limit = 5}) =>
+      LocalDbService.getRecentSearches(limit: limit);
 
   /// Toggle a category filter. Pass null to clear.
   void setCategory(String? category) {
     _selectedCategory = (_selectedCategory == category) ? null : category;
+    _persistFilters();
     loadProducts();
   }
 
@@ -149,12 +196,14 @@ class CatalogViewModel extends ChangeNotifier {
   void setCondition(String? condition) {
     _selectedCondition =
         (_selectedCondition == condition) ? null : condition;
+    _persistFilters();
     loadProducts();
   }
 
   /// Set price sort. Pass null to clear.
   void setPriceSort(String? sort) {
     _selectedPriceSort = (_selectedPriceSort == sort) ? null : sort;
+    _persistFilters();
     loadProducts();
   }
 
@@ -167,6 +216,17 @@ class CatalogViewModel extends ChangeNotifier {
     _selectedCategory = category;
     _selectedPriceSort = priceSort;
     _selectedCondition = condition;
+    _persistFilters();
     loadProducts();
+  }
+
+  /// Fire-and-forget: we don't await because the current filter state is
+  /// already in memory and the UI doesn't need to wait on disk I/O.
+  void _persistFilters() {
+    PreferencesService.instance.setLastCatalogFilters(
+      category: _selectedCategory,
+      condition: _selectedCondition,
+      priceSort: _selectedPriceSort,
+    );
   }
 }

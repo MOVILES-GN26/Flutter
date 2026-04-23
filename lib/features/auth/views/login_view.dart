@@ -27,8 +27,18 @@ class _LoginViewState extends State<LoginView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _authViewModel = context.read<AuthViewModel>();
       _authViewModel.addListener(_onAuthChanged);
+      _prefillLastEmail();
     });
     _initNfc();
+  }
+
+  Future<void> _prefillLastEmail() async {
+    final lastEmail = await _authViewModel.getLastLoginEmail();
+    if (!mounted || lastEmail == null || lastEmail.isEmpty) return;
+    // Only prefill if the user hasn't typed anything yet.
+    if (_emailController.text.isEmpty) {
+      _emailController.text = lastEmail;
+    }
   }
 
   Future<void> _initNfc() async {

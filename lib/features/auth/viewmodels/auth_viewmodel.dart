@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/hive_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../models/auth_user.dart';
 
@@ -14,11 +15,21 @@ class AuthViewModel extends ChangeNotifier {
   AuthUser? _user;
   String? _errorMessage;
   bool _forgotPasswordSuccess = false;
+
+  AuthViewModel() {
+    // Hydrate from the Hive cache so UI bound to `user` has data before
+    // any login happens (useful when tokens are still valid from a prior session).
+    _user = HiveService.getUser();
+  }
   
   AuthStatus get status => _status;
   AuthUser? get user => _user;
   String? get errorMessage => _errorMessage;
   bool get forgotPasswordSuccess => _forgotPasswordSuccess;
+
+  /// The email used on the last successful login, or null if never logged in.
+  /// Consumed by the Login view to pre-fill the email field.
+  Future<String?> getLastLoginEmail() => _storageService.getLastLoginEmail();
   
   /// Perform login against the API.
   /// Shows specific error messages so the user knows what went wrong.
@@ -39,9 +50,12 @@ class AuthViewModel extends ChangeNotifier {
         if (response['refresh_token'] != null) {
           await _storageService.saveRefreshToken(response['refresh_token']);
         }
+        // Remember the email so the login view can pre-fill it next time.
+        await _storageService.saveLastLoginEmail(email);
 
         if (response['user'] != null) {
           _user = AuthUser.fromJson(response['user']);
+          await HiveService.putUser(_user!);
         }
 
         _status = AuthStatus.authenticated;
@@ -117,11 +131,13 @@ class AuthViewModel extends ChangeNotifier {
         if (response['refresh_token'] != null) {
           await _storageService.saveRefreshToken(response['refresh_token']);
         }
-        
+        await _storageService.saveLastLoginEmail(email);
+
         if (response['user'] != null) {
           _user = AuthUser.fromJson(response['user']);
+          await HiveService.putUser(_user!);
         }
-        
+
         _status = AuthStatus.authenticated;
       } else {
         _errorMessage = response?['message'] ?? 'Registration failed';
@@ -137,9 +153,12 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Cerrar sesión
+  /// Cerrar sesión. Wipes both token storage and the cached user/favorites
+  /// in Hive so the next account that logs in starts from a clean slate.
   Future<void> logout() async {
     await _storageService.clearAllTokens();
+    await HiveService.clearUser();
+    await HiveService.clearFavorites();
     _user = null;
     _status = AuthStatus.unauthenticated;
     notifyListeners();
