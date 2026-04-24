@@ -9,7 +9,7 @@ import '../favorites/views/favorites_view.dart';
 import '../favorites/viewmodels/favorites_viewmodel.dart';
 import '../profile/views/profile_view.dart';
 
-/// Pantalla principal con bottom navigation bar
+/// Root screen hosting the bottom navigation bar.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 

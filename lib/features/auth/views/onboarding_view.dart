@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/preferences_service.dart';
 import 'register_view.dart';
 
-/// Vista de Onboarding
+/// Onboarding screen shown to first-time users.
 class OnboardingView extends StatefulWidget {
   const OnboardingView({super.key});
 
@@ -144,7 +144,7 @@ class _OnboardingViewState extends State<OnboardingView> {
             ),
             const SizedBox(height: 32),
             
-            // Navegación inferior
+            // Bottom navigation row
             Padding(
               padding: const EdgeInsets.only(left: 24.0, right: 24.0, bottom: 48.0),
               child: SizedBox(

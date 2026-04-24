@@ -6,6 +6,7 @@ import '../../../core/services/api_service.dart';
 import '../../../core/services/file_storage_service.dart';
 import '../../../core/services/hive_service.dart';
 import '../../../core/services/preferences_service.dart';
+import '../../../core/services/queue_events.dart';
 
 enum PostStatus { initial, loading, success, error, queued }
 
@@ -206,6 +207,7 @@ class PostViewModel extends ChangeNotifier {
       queuedAt: DateTime.now(),
     );
     await HiveService.enqueuePendingPost(post);
+    QueueEventBus.instance.emit(PostQueued(postId));
   }
 
   /// Number of posts currently waiting to be uploaded.
@@ -246,7 +248,10 @@ class PostViewModel extends ChangeNotifier {
         break;
       }
     }
-    if (flushed > 0) notifyListeners();
+    if (flushed > 0) {
+      notifyListeners();
+      QueueEventBus.instance.emit(PostsFlushed(flushed));
+    }
     return flushed;
   }
 

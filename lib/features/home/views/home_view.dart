@@ -10,7 +10,7 @@ import '../../../core/widgets/empty_state_view.dart';
 import '../../../core/widgets/offline_banner.dart';
 import '../viewmodels/home_viewmodel.dart';
 
-/// Vista de Home — implementa Cache-then-Network (stale-while-revalidate).
+/// Home screen — implements Cache-then-Network (stale-while-revalidate).
 /// Paints from the Hive snapshot instantly, then auto-refreshes whenever
 /// connectivity comes back. Never shows a blank page — falls back to an
 /// explicit "cold-start offline" empty state when no cache exists.
@@ -40,11 +40,23 @@ class _HomeViewState extends State<HomeView> {
 
   /// Auto-refresh the feed the moment the device regains connectivity.
   /// Avoids the user needing to pull-to-refresh after a tunnel / elevator.
+  ///
+  /// Uses handler-style `.then/.catchError` rather than `async/await`
+  /// because this is a listener callback with a `void` return type. The
+  /// chain makes the fire-and-forget intent explicit and logs refresh
+  /// outcomes without demanding the caller change its signature.
   void _onConnectivityChanged() {
     final c = _connectivity;
     if (c == null || !mounted) return;
     if (_wasOffline && c.isOnline) {
-      context.read<HomeViewModel>().loadHomeData();
+      context
+          .read<HomeViewModel>()
+          .loadHomeData()
+          .then((_) => debugPrint('[Home] auto-refresh after reconnect done'))
+          .catchError(
+            (Object err) =>
+                debugPrint('[Home] auto-refresh failed: $err'),
+          );
     }
     _wasOffline = c.isOffline;
   }
@@ -233,7 +245,7 @@ class _HomeViewState extends State<HomeView> {
               padding: const EdgeInsets.all(4),
               child: ElevatedButton(
                 onPressed: () {
-                  // TODO: Implementar búsqueda
+                  // TODO: implement search
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFDD835), // Yellow

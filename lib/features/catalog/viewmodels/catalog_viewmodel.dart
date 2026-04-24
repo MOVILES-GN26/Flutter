@@ -273,14 +273,29 @@ class CatalogViewModel extends ChangeNotifier {
     loadProducts();
   }
 
-  /// Fire-and-forget: we don't await because the current filter state is
-  /// already in memory and the UI doesn't need to wait on disk I/O.
+  /// Persists the current filter selection. Fire-and-forget by design —
+  /// the UI already reflects the change, so we don't block on disk I/O.
+  ///
+  /// ## Why handler-style (.then/.catchError) here instead of async/await?
+  ///
+  /// This method returns `void` and has no caller that cares about
+  /// completion. Using `async` would force us to make the method
+  /// `Future<void>` (no caller awaits it) or suppress the `unawaited_futures`
+  /// lint. The imperative `.then/.catchError` chain is the idiomatic Dart
+  /// way of saying "I don't care when this finishes, but I do want errors
+  /// logged, not silently swallowed."
   void _persistFilters() {
-    PreferencesService.instance.setLastCatalogFilters(
-      category: _selectedCategory,
-      condition: _selectedCondition,
-      priceSort: _selectedPriceSort,
-    );
+    PreferencesService.instance
+        .setLastCatalogFilters(
+          category: _selectedCategory,
+          condition: _selectedCondition,
+          priceSort: _selectedPriceSort,
+        )
+        .then((_) => debugPrint('[Catalog] filters persisted'))
+        .catchError(
+          (Object err) =>
+              debugPrint('[Catalog] filter persistence failed: $err'),
+        );
   }
 
   /// Wipes filters, products, and trending state so the next account does

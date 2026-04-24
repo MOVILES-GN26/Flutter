@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/post_categories.dart';
 import '../../../core/constants/post_conditions.dart';
 import '../../../core/constants/uniandes_buildings.dart';
+import '../../../core/widgets/offline_banner.dart';
 import '../viewmodels/post_viewmodel.dart';
 
 /// Post an Item screen matching the Figma design.
@@ -139,14 +140,21 @@ class _PostViewState extends State<PostView> {
             ),
           ),
           body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
+            child: Column(
+              children: [
+                const OfflineBanner(
+                  message:
+                      "Offline · we'll publish your item when you reconnect",
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
 
                     // ── Photos section ──
                     const Text(
@@ -611,10 +619,13 @@ class _PostViewState extends State<PostView> {
                             : const Text('Publish'),
                       ),
                     ),
-                    const SizedBox(height: 32),
-                  ],
+                          const SizedBox(height: 32),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         );

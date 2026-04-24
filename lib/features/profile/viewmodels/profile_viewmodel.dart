@@ -1,6 +1,6 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import '../../../core/isolates/json_isolates.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/hive_service.dart';
@@ -191,17 +191,17 @@ class ProfileViewModel extends ChangeNotifier {
   }
 
   /// Decodes the stored JWT payload to extract user fields.
+  ///
+  /// The base64-url + utf8 + JSON decode chain runs in a background isolate
+  /// via [compute] so the cold-start of the Profile screen does not do
+  /// crypto-adjacent string work on the UI thread.
   Future<void> _loadUserFromToken() async {
     try {
       final token = await _storageService.getAccessToken();
       if (token == null) return;
-      final parts = token.split('.');
-      if (parts.length != 3) return;
 
-      final payload = utf8.decode(
-        base64Url.decode(base64Url.normalize(parts[1])),
-      );
-      final data = jsonDecode(payload) as Map<String, dynamic>;
+      final data = await compute(decodeJwtPayload, token);
+      if (data == null) return;
 
       _userId = data['sub'] as String?;
       _email = data['email'] as String?;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -5,7 +7,9 @@ import 'core/auth_gate.dart';
 import 'core/services/api_service.dart';
 import 'core/services/hive_service.dart';
 import 'core/services/local_db_service.dart';
+import 'core/services/prefetch_service.dart';
 import 'core/services/preferences_service.dart';
+import 'core/services/queue_events.dart';
 import 'core/viewmodels/connectivity_viewmodel.dart';
 import 'core/viewmodels/theme_viewmodel.dart';
 import 'features/auth/viewmodels/auth_viewmodel.dart';
@@ -39,7 +43,19 @@ Future<void> main() async {
     LocalDbService.init(),
   ]);
   runApp(const MyApp());
+
+  // Fire-and-forget background warm-up: pre-populate Home caches 2s after
+  // the first frame paints. Uses raw Future primitives (no `async`/`await`).
+  // ignore: unawaited_futures
+  PrefetchService.warmHomeCaches();
 }
+
+/// Root-level messenger key, shared between [MaterialApp] (which attaches
+/// the ScaffoldMessenger it creates to this key) and the
+/// [_NetworkSyncListener] above it (which needs to surface SnackBars in
+/// response to app-wide Stream events — QueueEventBus).
+final GlobalKey<ScaffoldMessengerState> rootMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -146,6 +162,7 @@ class MyApp extends StatelessWidget {
           builder: (_, themeVM, __) => MaterialApp(
             title: 'AndesHub',
             debugShowCheckedModeBanner: false,
+            scaffoldMessengerKey: rootMessengerKey,
             themeMode: themeVM.themeMode,
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
@@ -161,6 +178,10 @@ class MyApp extends StatelessWidget {
 /// moment connectivity is restored. One instance is mounted for the entire
 /// app lifetime, so all background flushes happen here — individual screens
 /// don't need to wire their own listeners.
+///
+/// Also subscribes to the app-wide [QueueEventBus] Stream so it can show a
+/// single global SnackBar whenever a queued post/view is flushed, no matter
+/// which screen is currently on top.
 class _NetworkSyncListener extends StatefulWidget {
   final Widget child;
   const _NetworkSyncListener({required this.child});
@@ -172,6 +193,45 @@ class _NetworkSyncListener extends StatefulWidget {
 class _NetworkSyncListenerState extends State<_NetworkSyncListener> {
   ConnectivityViewModel? _connectivity;
   bool _wasOffline = false;
+  StreamSubscription<QueueEvent>? _queueSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Custom Stream subscription — one listener for the entire app lifetime.
+    // Each event is a one-shot notification, so we don't use setState here;
+    // we just surface a transient SnackBar.
+    _queueSub = QueueEventBus.instance.stream.listen(_onQueueEvent);
+  }
+
+  void _onQueueEvent(QueueEvent event) {
+    final messenger = _rootMessenger;
+    if (messenger == null) return;
+
+    final String message = switch (event) {
+      PostsFlushed(:final count) => count == 1
+          ? '1 pending item was published.'
+          : '$count pending items were published.',
+      ViewsFlushed(:final count) => count == 1
+          ? '1 pending view was synced.'
+          : '$count pending views were synced.',
+      PostQueued() =>
+        'No connection — saved locally. We\'ll publish it when you\'re back online.',
+    };
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  ScaffoldMessengerState? get _rootMessenger {
+    if (!mounted) return null;
+    return rootMessengerKey.currentState;
+  }
 
   @override
   void didChangeDependencies() {
@@ -204,6 +264,7 @@ class _NetworkSyncListenerState extends State<_NetworkSyncListener> {
 
   @override
   void dispose() {
+    _queueSub?.cancel();
     _connectivity?.removeListener(_onConnectivityChanged);
     super.dispose();
   }

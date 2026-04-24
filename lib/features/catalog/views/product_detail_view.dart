@@ -8,6 +8,7 @@ import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/local_db_service.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/widgets/offline_banner.dart';
 import '../../favorites/viewmodels/favorites_viewmodel.dart';
 import '../../payments/views/complete_payment_view.dart';
 import 'seller_profile_view.dart';
@@ -151,6 +152,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       ),
       body: Column(
         children: [
+          OfflineBanner(
+            message:
+                'Offline · cached product · checkout and live stats are unavailable',
+            lastUpdated: _viewStatsCachedAt,
+          ),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
