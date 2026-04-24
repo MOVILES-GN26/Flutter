@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../core/cache/lru_cache.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/local_db_service.dart';
@@ -38,6 +39,16 @@ class CatalogViewModel extends ChangeNotifier {
   // ── Trending state ──
   List<String> _trendingCategories = [];
 
+  /// LRU cache for trending-category lookups.
+  /// `sortedCategories` uses `contains()` which is O(n) on each rebuild;
+  /// this LRU converts repeated lookups to O(1).
+  ///
+  /// | Instance       | K             | V    | maxSize | Why LRU here                                  |
+  /// |----------------|---------------|------|---------|-----------------------------------------------|
+  /// | trendingLookup | String (query) | bool | 20      | sortedCategories recalculates contains() each |
+  /// |                |               |      |         | rebuild; LRU RAM avoids the linear scan       |
+  final LruCache<String, bool> _trendingLookup = LruCache(maxSize: 20);
+
   // ── Location state ──
   String? _nearestBuilding;
   List<String> _nearbyBuildings = [];
@@ -71,10 +82,23 @@ class CatalogViewModel extends ChangeNotifier {
   DateTime? get locationCachedAt => _locationCachedAt;
 
   /// Categories sorted by trending (most searched first), rest appended.
+  /// Uses [_trendingLookup] LRU to avoid O(n) `contains()` on every rebuild.
   List<String> get sortedCategories {
     if (_trendingCategories.isEmpty) return postCategories;
-    final trending = _trendingCategories.where(postCategories.contains).toList();
-    final rest = postCategories.where((c) => !_trendingCategories.contains(c)).toList();
+    final trending = _trendingCategories.where((c) {
+      final cached = _trendingLookup.get(c);
+      if (cached != null) return cached;
+      final isTrending = postCategories.contains(c);
+      _trendingLookup.put(c, isTrending);
+      return isTrending;
+    }).toList();
+    final rest = postCategories.where((c) {
+      final cached = _trendingLookup.get('!$c');
+      if (cached != null) return cached;
+      final isNotTrending = !_trendingCategories.contains(c);
+      _trendingLookup.put('!$c', isNotTrending);
+      return isNotTrending;
+    }).toList();
     return [...trending, ...rest];
   }
 
@@ -82,6 +106,7 @@ class CatalogViewModel extends ChangeNotifier {
   Future<void> loadTrending() async {
     try {
       _trendingCategories = await _apiService.getTrendingCategories();
+      _trendingLookup.clear(); // invalidate stale lookup entries
       notifyListeners();
     } catch (_) {}
   }

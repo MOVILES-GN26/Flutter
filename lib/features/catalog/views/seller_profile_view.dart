@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../../core/cache/image_cache_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
@@ -185,6 +186,7 @@ class _SellerProfileViewState extends State<SellerProfileView> {
             child: ClipOval(
               child: widget.sellerAvatarUrl?.isNotEmpty == true
                   ? CachedNetworkImage(
+                      cacheManager: AndesHubImageCacheManager.instance,
                       imageUrl: widget.sellerAvatarUrl!,
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) =>
@@ -276,6 +278,7 @@ class _ListingCard extends StatelessWidget {
                 color: const Color(0xFFF5ECCF),
                 child: item.imageUrls.isNotEmpty
                     ? CachedNetworkImage(
+                        cacheManager: AndesHubImageCacheManager.instance,
                         imageUrl: item.imageUrls.first,
                         fit: BoxFit.cover,
                         placeholder: (_, __) => const Center(

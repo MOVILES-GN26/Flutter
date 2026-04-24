@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../../core/cache/image_cache_manager.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/preferences_service.dart';
@@ -325,6 +326,7 @@ class _ManageListingCard extends StatelessWidget {
                   color: const Color(0xFFF5ECCF),
                   child: item.imageUrls.isNotEmpty
                       ? CachedNetworkImage(
+                          cacheManager: AndesHubImageCacheManager.instance,
                           imageUrl: item.imageUrls.first,
                           fit: BoxFit.cover,
                           placeholder: (_, __) => Center(

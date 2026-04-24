@@ -6,11 +6,50 @@ import 'package:http_parser/http_parser.dart';
 import 'api_config.dart';
 import 'hive_service.dart';
 import 'storage_service.dart';
+import '../cache/lru_cache.dart';
 import '../models/listing.dart';
 
 /// Servicio central para peticiones HTTP al API
 class ApiService {
   final StorageService _storageService = StorageService();
+
+  // ══════════════════════════════════════════════════════════════════════
+  // LRU RAM caches — two-tier: LRU in RAM (O(1)) → Hive on disk → network.
+  // ══════════════════════════════════════════════════════════════════════
+  //
+  // ┌────────────────────┬──────────┬──────────────────────┬─────────┬────────────────────────────────────────────────────┐
+  // │ Instance           │ K        │ V                    │ maxSize │ Why LRU here                                       │
+  // ├────────────────────┼──────────┼──────────────────────┼─────────┼────────────────────────────────────────────────────┤
+  // │ listingDetailCache │ productId│ Listing              │ 30      │ User opens same 3–5 products repeatedly; avoids    │
+  // │                    │          │                      │         │ deserialising JSON on every tap                    │
+  // ├────────────────────┼──────────┼──────────────────────┼─────────┼────────────────────────────────────────────────────┤
+  // │ productStatsCache  │ productId│ Map<String, dynamic> │ 50      │ Seller navigates between own products; getProduct  │
+  // │                    │          │                      │         │ Stats currently hits Hive every time — LRU is O(1) │
+  // └────────────────────┴──────────┴──────────────────────┴─────────┴────────────────────────────────────────────────────┘
+  //
+  // Why maxSize is low (30–50):
+  //   Each Listing weighs ~500 bytes → 30 items ≈ 15 KB. More entries
+  //   waste RAM for marginal gains since the Hive disk cache already
+  //   covers the "cold" layer.
+
+  /// RAM cache for recently-viewed listing details.
+  /// Entries evicted from here are already persisted in Hive/SQLite,
+  /// so no [onEvict] callback is needed.
+  static final LruCache<String, Listing> listingDetailCache = LruCache(
+    maxSize: 30,
+  );
+
+  /// RAM cache for product stats (view counts, etc.).
+  /// When an entry is evicted, it is flushed to Hive so we never lose
+  /// a "hot" stats snapshot.
+  static final LruCache<String, Map<String, dynamic>> productStatsCache =
+      LruCache(
+    maxSize: 50,
+    onEvict: (productId, stats) {
+      // Persist evicted entry to Hive disk cache (fire-and-forget).
+      HiveService.putProductStats(productId, stats);
+    },
+  );
   
   /// Petición GET a /home con el access token
   Future<bool> validateHomeAccess() async {
@@ -352,13 +391,22 @@ class ApiService {
   }
 
   /// Returns the stats (total views, etc.) for a product using a
-  /// **network-falling-back-to-cache** strategy. Sellers want current
-  /// numbers, so we try the network first; on failure we return the last
-  /// cached value alongside a timestamp the UI can display ("updated 3h
-  /// ago"). `data` is the raw API shape; `updatedAt` is `null` only when
+  /// **LRU-RAM → network → Hive** strategy. Sellers want current
+  /// numbers, so we try LRU first (O(1)), then network, then Hive
+  /// disk cache as a last resort.
+  ///
+  /// `data` is the raw API shape; `updatedAt` is `null` only when
   /// the payload is fresh from the network.
   Future<({Map<String, dynamic> data, DateTime? updatedAt})?>
       getProductStats(String productId) async {
+    // ── 1. Check LRU RAM cache (O(1)) ──
+    final lruHit = productStatsCache.get(productId);
+    if (lruHit != null) {
+      debugPrint('[getProductStats] LRU RAM hit for $productId');
+      return (data: lruHit, updatedAt: null);
+    }
+
+    // ── 2. Try network ──
     try {
       final token = await _storageService.getAccessToken();
       final uri = Uri.parse(
@@ -372,6 +420,8 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
+        // Populate both LRU and Hive for future lookups.
+        productStatsCache.put(productId, data);
         await HiveService.putProductStats(productId, data);
         return (data: data, updatedAt: null);
       }
@@ -379,16 +429,28 @@ class ApiService {
       debugPrint('[getProductStats] falling back to cache: $e');
     }
 
+    // ── 3. Fall back to Hive disk cache ──
     final cached = HiveService.getProductStats(productId);
     if (cached == null) return null;
+    // Warm the LRU with the Hive result so subsequent reads are O(1).
+    productStatsCache.put(productId, cached.data);
     return (data: cached.data, updatedAt: cached.updatedAt);
   }
 
   /// Fetch the most recent listings for the Home screen.
+  /// Populates the [listingDetailCache] with each listing for O(1)
+  /// subsequent lookups by product ID.
   Future<List<Listing>> getRecentProducts() async {
     try {
       final data = await getProducts();
-      return data.map((json) => Listing.fromJson(json)).toList();
+      final listings = data.map((json) => Listing.fromJson(json)).toList();
+      // Warm the LRU cache so tapping a product skips deserialization.
+      for (final listing in listings) {
+        if (listing.id != null) {
+          listingDetailCache.put(listing.id!, listing);
+        }
+      }
+      return listings;
     } catch (e) {
       return [];
     }

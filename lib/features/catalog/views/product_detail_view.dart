@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/cache/image_cache_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/listing.dart';
@@ -164,6 +165,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         color: const Color(0xFFF5ECCF),
                         child: widget.item.imageUrls.isNotEmpty
                             ? CachedNetworkImage(
+                                cacheManager: AndesHubImageCacheManager.instance,
                                 imageUrl: widget.item.imageUrls.first,
                                 fit: BoxFit.cover,
                                 placeholder: (_, _) => const Center(
@@ -373,7 +375,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           radius: 30,
           backgroundColor: const Color(0xFFF5ECCF),
           backgroundImage: widget.item.sellerAvatarUrl != null
-              ? CachedNetworkImageProvider(widget.item.sellerAvatarUrl!)
+              ? CachedNetworkImageProvider(widget.item.sellerAvatarUrl!,
+                  cacheManager: AndesHubImageCacheManager.instance)
               : null,
           child: widget.item.sellerAvatarUrl == null
               ? const Icon(Icons.person, size: 30, color: Color(0xFF8B7E3B))

@@ -17,6 +17,22 @@ import 'features/profile/viewmodels/profile_viewmodel.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Configure Flutter's in-memory image cache ─────────────────────────
+  // Default: 100 images / 100 MB (LRU).
+  // Bumped to 200 / 150 MB because the Home screen loads many thumbnails
+  // via horizontal scroll; the stock limits cause visible reloads when the
+  // user scrolls back.
+  //
+  // Image cache flow:
+  //   URL → memory LRU (ImageCache, 200/150 MB)
+  //       → disk LRU (flutter_cache_manager, 400 objects / 30 days)
+  //       → network (HTTP GET)
+  //       → decode → display
+  PaintingBinding.instance.imageCache
+    ..maximumSize = 200
+    ..maximumSizeBytes = 150 * (1 << 20); // 150 MB
+
   await Future.wait([
     PreferencesService.init(),
     HiveService.init(),

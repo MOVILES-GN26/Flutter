@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/cache/image_cache_manager.dart';
 import '../../catalog/views/product_detail_view.dart';
 import '../../../core/constants/post_categories.dart';
 import '../../../core/models/listing.dart';
@@ -371,6 +372,7 @@ class _HomeViewState extends State<HomeView> {
                 borderRadius: BorderRadius.circular(12),
                 child: imageUrl.isNotEmpty
                     ? CachedNetworkImage(
+                        cacheManager: AndesHubImageCacheManager.instance,
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
                         width: double.infinity,
