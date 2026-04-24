@@ -57,6 +57,9 @@ class StorageService {
   Future<void> deleteLastLoginEmail() =>
       _storage.delete(key: _lastLoginEmailKey);
 
-  /// Wipes EVERYTHING, including biometric & last email. Use for "full logout".
+  /// Wipes EVERYTHING in secure storage, including [lastLoginEmail].
+  /// Only use when the user explicitly wants to erase all trace of prior
+  /// sessions (e.g. a "forget this device" option). Regular logouts should
+  /// use [clearAllTokens] to keep the login-email prefill convenience.
   Future<void> wipe() => _storage.deleteAll();
 }

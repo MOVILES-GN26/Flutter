@@ -163,6 +163,24 @@ class ProfileViewModel extends ChangeNotifier {
     }
   }
 
+  /// Wipes every field so the next account does not briefly see the previous
+  /// user's name, avatar, or listings on the Profile tab.
+  void resetForLogout() {
+    _status = ProfileStatus.initial;
+    _errorMessage = null;
+    _listings = const [];
+    _userId = null;
+    _name = null;
+    _email = null;
+    _major = null;
+    _studentId = null;
+    _firstName = null;
+    _lastName = null;
+    _avatarUrl = null;
+    _phoneNumber = null;
+    notifyListeners();
+  }
+
   /// Refreshes only the listings (e.g. after posting a new item).
   Future<void> refreshListings() async {
     if (_userId == null || _userId!.isEmpty) return;

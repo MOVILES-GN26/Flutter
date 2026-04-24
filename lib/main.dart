@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'core/auth_gate.dart';
+import 'core/services/api_service.dart';
 import 'core/services/hive_service.dart';
 import 'core/services/local_db_service.dart';
 import 'core/services/preferences_service.dart';
+import 'core/viewmodels/connectivity_viewmodel.dart';
 import 'core/viewmodels/theme_viewmodel.dart';
 import 'features/auth/viewmodels/auth_viewmodel.dart';
 import 'features/catalog/viewmodels/catalog_viewmodel.dart';
@@ -114,6 +116,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ConnectivityViewModel()),
         ChangeNotifierProvider(create: (_) => ThemeViewModel()),
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
         ChangeNotifierProvider(create: (_) => HomeViewModel()),
@@ -122,16 +125,73 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProfileViewModel()),
         ChangeNotifierProvider(create: (_) => FavoritesViewModel()),
       ],
-      child: Consumer<ThemeViewModel>(
-        builder: (_, themeVM, __) => MaterialApp(
-          title: 'AndesHub',
-          debugShowCheckedModeBanner: false,
-          themeMode: themeVM.themeMode,
-          theme: _buildTheme(Brightness.light),
-          darkTheme: _buildTheme(Brightness.dark),
-          home: const AuthGate(),
+      child: _NetworkSyncListener(
+        child: Consumer<ThemeViewModel>(
+          builder: (_, themeVM, __) => MaterialApp(
+            title: 'AndesHub',
+            debugShowCheckedModeBanner: false,
+            themeMode: themeVM.themeMode,
+            theme: _buildTheme(Brightness.light),
+            darkTheme: _buildTheme(Brightness.dark),
+            home: const AuthGate(),
+          ),
         ),
       ),
     );
   }
+}
+
+/// Sits just inside the MultiProvider and drains every offline queue the
+/// moment connectivity is restored. One instance is mounted for the entire
+/// app lifetime, so all background flushes happen here — individual screens
+/// don't need to wire their own listeners.
+class _NetworkSyncListener extends StatefulWidget {
+  final Widget child;
+  const _NetworkSyncListener({required this.child});
+
+  @override
+  State<_NetworkSyncListener> createState() => _NetworkSyncListenerState();
+}
+
+class _NetworkSyncListenerState extends State<_NetworkSyncListener> {
+  ConnectivityViewModel? _connectivity;
+  bool _wasOffline = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _connectivity ??= context.read<ConnectivityViewModel>()
+      ..addListener(_onConnectivityChanged);
+    _wasOffline = _connectivity!.isOffline;
+  }
+
+  void _onConnectivityChanged() {
+    final c = _connectivity;
+    if (c == null) return;
+    if (_wasOffline && c.isOnline) {
+      _flushAllQueues();
+    }
+    _wasOffline = c.isOffline;
+  }
+
+  /// Best-effort drain of every write-behind queue. Each `flush*` method
+  /// is independently safe to retry, so we don't bother coordinating them.
+  Future<void> _flushAllQueues() async {
+    try {
+      await ApiService().flushPendingViews();
+    } catch (_) {/* next reconnect will retry */}
+    try {
+      if (!mounted) return;
+      await context.read<PostViewModel>().flushPendingPosts();
+    } catch (_) {/* next reconnect will retry */}
+  }
+
+  @override
+  void dispose() {
+    _connectivity?.removeListener(_onConnectivityChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/file_storage_service.dart';
 import '../../../core/services/hive_service.dart';
+import '../../../core/services/local_db_service.dart';
+import '../../../core/services/preferences_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../models/auth_user.dart';
 
@@ -153,12 +156,30 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Cerrar sesión. Wipes both token storage and the cached user/favorites
-  /// in Hive so the next account that logs in starts from a clean slate.
+  /// Cerrar sesión. Wipes every on-disk trace of the current account so
+  /// the next login starts from a clean slate on shared devices:
+  ///
+  ///   * Secure storage: access + refresh tokens (keeps `last_login_email`
+  ///     so the login form still prefills for returning users).
+  ///   * Hive: cached user, favorites, home snapshot, **pending posts
+  ///     queue** (critical — an orphaned queue would otherwise be flushed
+  ///     under the next user's JWT).
+  ///   * SQLite: recent_views + search_history (privacy). `listings` is
+  ///     intentionally preserved as public catalog data.
+  ///   * Files: post drafts, queued-post images, payment proofs.
+  ///   * Preferences: default store id, last catalog filters. Theme and
+  ///     onboarding flag are device-scoped and survive.
+  ///
+  /// In-memory ViewModel state is the caller's responsibility — see the
+  /// logout button in `settings_view.dart` for the full orchestration.
   Future<void> logout() async {
-    await _storageService.clearAllTokens();
-    await HiveService.clearUser();
-    await HiveService.clearFavorites();
+    await Future.wait([
+      _storageService.clearAllTokens(),
+      HiveService.wipeUserScoped(),
+      LocalDbService.clearUserScopedData(),
+      FileStorageService.wipeUserFiles(),
+      PreferencesService.instance.clearUserScoped(),
+    ]);
     _user = null;
     _status = AuthStatus.unauthenticated;
     notifyListeners();

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import '../../../core/viewmodels/connectivity_viewmodel.dart';
+import '../../../core/widgets/offline_banner.dart';
 import '../../navigation/main_screen.dart';
 import 'register_view.dart';
 
@@ -85,6 +87,20 @@ class _LoginViewState extends State<LoginView> {
   }
 
   void _handleLogin() {
+    // Guard against race: user could tap the button in the split second
+    // between connectivity dropping and the UI reflecting it. Show a
+    // specific snackbar instead of spinning indefinitely on a dead request.
+    if (context.read<ConnectivityViewModel>().isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "You're offline. Reconnect to sign in.",
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     if (_formKey.currentState!.validate()) {
       context.read<AuthViewModel>().login(
             _emailController.text.trim(),
@@ -105,10 +121,21 @@ class _LoginViewState extends State<LoginView> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Consumer<AuthViewModel>(
-          builder: (context, authVm, _) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          children: [
+            const OfflineBanner(message: 'You are offline · sign-in needs a connection'),
+            Expanded(child: _buildFormScroll()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormScroll() {
+    return Consumer<AuthViewModel>(
+      builder: (context, authVm, _) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -313,8 +340,6 @@ class _LoginViewState extends State<LoginView> {
               ),
             );
           },
-        ),
-      ),
-    );
+        );
   }
 }

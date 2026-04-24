@@ -6,6 +6,10 @@ import '../../../core/services/preferences_service.dart';
 import '../../../core/viewmodels/theme_viewmodel.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import '../../auth/views/login_view.dart';
+import '../../catalog/viewmodels/catalog_viewmodel.dart';
+import '../../favorites/viewmodels/favorites_viewmodel.dart';
+import '../../home/viewmodels/home_viewmodel.dart';
+import '../../post/viewmodels/post_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import 'edit_profile_view.dart';
 
@@ -93,19 +97,46 @@ class SettingsView extends StatelessWidget {
 
               // ── Logout button ──
               _LogoutButton(
-                onTap: () async {
-                  await context.read<AuthViewModel>().logout();
-                  if (!context.mounted) return;
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const LoginView()),
-                    (route) => false,
-                  );
-                },
+                onTap: () => _performLogout(context),
               ),
             ],
           );
         },
       ),
+    );
+  }
+
+  /// Orchestrates a full logout:
+  ///   1. Reset every ViewModel that holds user-scoped in-memory state
+  ///      (the Providers live above this screen and would otherwise keep
+  ///      serving the previous account's data to the next one).
+  ///   2. Wipe tokens + Hive boxes + SQL tables + local files + prefs.
+  ///   3. Replace the navigation stack with the Login screen.
+  Future<void> _performLogout(BuildContext context) async {
+    // Grab every VM reference up front — after `await` the widget may be
+    // gone, which would make `context.read<T>()` throw.
+    final auth = context.read<AuthViewModel>();
+    final home = context.read<HomeViewModel>();
+    final catalog = context.read<CatalogViewModel>();
+    final favorites = context.read<FavoritesViewModel>();
+    final post = context.read<PostViewModel>();
+    final profile = context.read<ProfileViewModel>();
+    final navigator = Navigator.of(context);
+
+    // ── 1. Clear in-memory state ──
+    home.resetForLogout();
+    catalog.resetForLogout();
+    favorites.resetForLogout();
+    post.resetForLogout();
+    profile.resetForLogout();
+
+    // ── 2. Wipe disk ──
+    await auth.logout();
+
+    // ── 3. Navigate to Login ──
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginView()),
+      (route) => false,
     );
   }
 

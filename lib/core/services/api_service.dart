@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'api_config.dart';
+import 'hive_service.dart';
 import 'storage_service.dart';
 import '../models/listing.dart';
 
@@ -279,23 +280,85 @@ class ApiService {
   }
 
   /// Registers a view interaction for a product.
+  ///
+  /// Write-behind: if the POST fails (no network, backend down), the view
+  /// is queued in Hive keyed by productId and flushed by
+  /// [flushPendingViews] as soon as connectivity is restored.
   Future<void> registerView(String productId) async {
     try {
       final token = await _storageService.getAccessToken();
-      await http.post(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.interactionsViewEndpoint}'),
-        headers: token != null
-            ? ApiConfig.authHeaders(token)
-            : ApiConfig.defaultHeaders,
-        body: jsonEncode({'product_id': productId}),
-      ).timeout(ApiConfig.connectionTimeout);
+      final response = await http
+          .post(
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.interactionsViewEndpoint}'),
+            headers: token != null
+                ? ApiConfig.authHeaders(token)
+                : ApiConfig.defaultHeaders,
+            body: jsonEncode({'product_id': productId}),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        // Non-2xx (e.g. backend up but flaky): queue for retry so we don't
+        // lose the analytics event.
+        await HiveService.enqueuePendingView(productId);
+      }
     } catch (e) {
-      debugPrint('[registerView] exception: $e');
+      debugPrint('[registerView] queueing offline: $e');
+      await HiveService.enqueuePendingView(productId);
     }
   }
 
-  /// Returns the stats (total views, etc.) for a product.
-  Future<Map<String, dynamic>?> getProductStats(String productId) async {
+  /// Drains [HiveService.getPendingViewIds] by POSTing each entry. Stops
+  /// on the first failure so we don't hammer the server during a partial
+  /// outage. Returns the count of events successfully flushed.
+  Future<int> flushPendingViews() async {
+    final ids = HiveService.getPendingViewIds();
+    if (ids.isEmpty) return 0;
+
+    final token = await _storageService.getAccessToken();
+    final headers = token != null
+        ? ApiConfig.authHeaders(token)
+        : ApiConfig.defaultHeaders;
+    final uri = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.interactionsViewEndpoint}');
+
+    int flushed = 0;
+    for (final productId in ids) {
+      try {
+        final response = await http
+            .post(
+              uri,
+              headers: headers,
+              body: jsonEncode({'product_id': productId}),
+            )
+            .timeout(ApiConfig.connectionTimeout);
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          await HiveService.removePendingView(productId);
+          flushed++;
+        } else {
+          // Server responded but rejected — don't retry forever, drop.
+          if (response.statusCode == 404) {
+            await HiveService.removePendingView(productId);
+          }
+          break;
+        }
+      } catch (_) {
+        // Network hiccup mid-flush — keep remaining events for next try.
+        break;
+      }
+    }
+    return flushed;
+  }
+
+  /// Returns the stats (total views, etc.) for a product using a
+  /// **network-falling-back-to-cache** strategy. Sellers want current
+  /// numbers, so we try the network first; on failure we return the last
+  /// cached value alongside a timestamp the UI can display ("updated 3h
+  /// ago"). `data` is the raw API shape; `updatedAt` is `null` only when
+  /// the payload is fresh from the network.
+  Future<({Map<String, dynamic> data, DateTime? updatedAt})?>
+      getProductStats(String productId) async {
     try {
       final token = await _storageService.getAccessToken();
       final uri = Uri.parse(
@@ -308,13 +371,17 @@ class ApiService {
       ).timeout(ApiConfig.connectionTimeout);
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        await HiveService.putProductStats(productId, data);
+        return (data: data, updatedAt: null);
       }
-      return null;
     } catch (e) {
-      debugPrint('[getProductStats] exception: $e');
-      return null;
+      debugPrint('[getProductStats] falling back to cache: $e');
     }
+
+    final cached = HiveService.getProductStats(productId);
+    if (cached == null) return null;
+    return (data: cached.data, updatedAt: cached.updatedAt);
   }
 
   /// Fetch the most recent listings for the Home screen.

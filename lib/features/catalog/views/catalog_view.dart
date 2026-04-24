@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/post_categories.dart';
 import '../../../core/models/listing.dart';
+import '../../../core/viewmodels/connectivity_viewmodel.dart';
+import '../../../core/widgets/empty_state_view.dart';
+import '../../../core/widgets/offline_banner.dart';
 import '../viewmodels/catalog_viewmodel.dart';
 import 'product_detail_view.dart';
 
@@ -17,19 +20,37 @@ class CatalogView extends StatefulWidget {
 
 class _CatalogViewState extends State<CatalogView> {
   final _searchController = TextEditingController();
+  ConnectivityViewModel? _connectivity;
+  bool _wasOffline = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final vm = context.read<CatalogViewModel>();
-      vm.loadProducts();   // already fetches trending in parallel
+      vm.loadProducts(); // already fetches trending in parallel
       vm.detectLocation();
+      _connectivity = context.read<ConnectivityViewModel>();
+      _wasOffline = _connectivity!.isOffline;
+      _connectivity!.addListener(_onConnectivityChanged);
     });
+  }
+
+  /// Re-fetch products the moment connectivity is restored so the user
+  /// sees fresh data without pulling to refresh manually.
+  void _onConnectivityChanged() {
+    final c = _connectivity;
+    if (c == null || !mounted) return;
+    if (_wasOffline && c.isOnline) {
+      context.read<CatalogViewModel>().loadProducts();
+    }
+    _wasOffline = c.isOffline;
   }
 
   @override
   void dispose() {
+    _connectivity?.removeListener(_onConnectivityChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -330,6 +351,11 @@ class _CatalogViewState extends State<CatalogView> {
         builder: (context, vm, _) {
           return Column(
             children: [
+              OfflineBanner(
+                message: vm.products.isEmpty
+                    ? 'Offline'
+                    : 'Offline · showing saved catalog',
+              ),
               // ── Search bar ──
               Padding(
                 padding:
@@ -443,28 +469,15 @@ class _CatalogViewState extends State<CatalogView> {
     }
 
     if (vm.status == CatalogStatus.error && vm.products.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.wifi_off, size: 48, color: Color(0xFF96914F)),
-              const SizedBox(height: 12),
-              Text(
-                vm.errorMessage ?? 'Something went wrong.',
-                textAlign: TextAlign.center,
-                style:
-                    const TextStyle(fontSize: 14, color: Color(0xFF96914F)),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => vm.loadProducts(),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
+      final isOffline = context.read<ConnectivityViewModel>().isOffline;
+      return EmptyStateView(
+        icon: isOffline ? Icons.cloud_off_outlined : Icons.error_outline,
+        title: isOffline ? 'You are offline' : "Couldn't load the catalog",
+        message: isOffline
+            ? "Connect once to download products. You'll be able to filter and search them offline afterwards."
+            : (vm.errorMessage ?? 'Check your connection and try again.'),
+        actionLabel: 'Retry',
+        onAction: vm.loadProducts,
       );
     }
 

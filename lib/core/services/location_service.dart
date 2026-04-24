@@ -1,6 +1,28 @@
 import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import '../constants/uniandes_buildings.dart';
+import 'preferences_service.dart';
+
+/// How old a cached GPS fix can be before we refuse to use it. 24h keeps
+/// things useful for a user that reopens the app the next day still on
+/// campus, without pretending we know their location days later.
+const Duration _staleLocationCutoff = Duration(hours: 24);
+
+/// A position returned by [LocationService.resolvePosition], plus whether
+/// it came from a fresh GPS fix or from the persisted fallback.
+class ResolvedPosition {
+  final double latitude;
+  final double longitude;
+  final bool isFresh;
+  final DateTime? cachedAt;
+
+  const ResolvedPosition({
+    required this.latitude,
+    required this.longitude,
+    required this.isFresh,
+    this.cachedAt,
+  });
+}
 
 /// Service that handles GPS location and maps it to nearby campus buildings.
 class LocationService {
@@ -14,6 +36,9 @@ class LocationService {
 
   /// Check & request location permissions, then return current position.
   /// Returns `null` if permissions are denied or location services disabled.
+  ///
+  /// Side effect: successful fixes are persisted via [PreferencesService]
+  /// so they can be used as a fallback by [resolvePosition].
   Future<Position?> getCurrentPosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return null;
@@ -26,15 +51,96 @@ class LocationService {
     if (permission == LocationPermission.deniedForever) return null;
 
     try {
-      return await Geolocator.getCurrentPosition(
+      final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           timeLimit: Duration(seconds: 10),
         ),
       );
+      // Fire-and-forget: the fix is already returned, don't block on I/O.
+      PreferencesService.instance.setLastKnownLocation(
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+      );
+      return pos;
     } catch (_) {
       return null;
     }
+  }
+
+  /// Offline-first location resolver. Tries GPS first; if that fails or
+  /// times out, falls back to the last cached fix provided it is younger
+  /// than [_staleLocationCutoff]. Returns null only if both options fail,
+  /// at which point the UI should hide the "nearby" section gracefully.
+  Future<ResolvedPosition?> resolvePosition() async {
+    final fresh = await getCurrentPosition();
+    if (fresh != null) {
+      return ResolvedPosition(
+        latitude: fresh.latitude,
+        longitude: fresh.longitude,
+        isFresh: true,
+      );
+    }
+    final cached = PreferencesService.instance.lastKnownLocation;
+    if (cached == null || cached.age > _staleLocationCutoff) return null;
+    return ResolvedPosition(
+      latitude: cached.latitude,
+      longitude: cached.longitude,
+      isFresh: false,
+      cachedAt: cached.timestamp,
+    );
+  }
+
+  /// Variant of [isOnCampus] that accepts the coordinate pair directly so
+  /// it can be used with both [Position] and [ResolvedPosition].
+  bool isOnCampusAt(double latitude, double longitude) {
+    final distance = _distanceMetres(
+      latitude,
+      longitude,
+      _campusCenterLat,
+      _campusCenterLng,
+    );
+    return distance <= _campusRadiusMetres;
+  }
+
+  /// Variant of [getNearestBuilding] that accepts the coordinate pair
+  /// directly. Returns null if no building is within [nearbyRadiusMetres].
+  String? getNearestBuildingAt(double latitude, double longitude) {
+    String? nearest;
+    double minDist = double.infinity;
+    for (final entry in buildingCoordinates.entries) {
+      final d = _distanceMetres(
+        latitude,
+        longitude,
+        entry.value.lat,
+        entry.value.lng,
+      );
+      if (d < minDist) {
+        minDist = d;
+        nearest = entry.key;
+      }
+    }
+    if (minDist <= nearbyRadiusMetres) return nearest;
+    return null;
+  }
+
+  /// Variant of [getNearbyBuildings] that accepts coordinates directly.
+  List<String> getNearbyBuildingsAt(double latitude, double longitude) {
+    final distances = <String, double>{};
+    for (final entry in buildingCoordinates.entries) {
+      final d = _distanceMetres(
+        latitude,
+        longitude,
+        entry.value.lat,
+        entry.value.lng,
+      );
+      if (d <= nearbyRadiusMetres) {
+        distances[entry.key] = d;
+      }
+    }
+    final sorted = distances.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    return sorted.map((e) => e.key).toList();
   }
 
   /// Returns `true` if the given position is within the campus boundary.

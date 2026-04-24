@@ -81,6 +81,15 @@ class FavoritesViewModel extends ChangeNotifier {
     return success;
   }
 
+  /// Drop every cached favorite from memory. Disk cleanup is the auth
+  /// service's responsibility — this only handles the in-memory side.
+  void resetForLogout() {
+    _status = FavoritesStatus.initial;
+    _errorMessage = null;
+    _favorites = const [];
+    notifyListeners();
+  }
+
   /// Optimistically removes [productId] from the cache + local list, then
   /// calls the API. Rolls back both layers if the API call fails.
   Future<bool> removeFavorite(String productId) async {

@@ -279,6 +279,22 @@ class LocalDbService {
   }
 
   // ══════════════════════════════════════════════════════════════════════
+  // Session cleanup
+  // ══════════════════════════════════════════════════════════════════════
+
+  /// Wipes the tables that hold behavior tied to the logged-in user —
+  /// recently-viewed products and search queries. The `listings` cache
+  /// is intentionally left behind because it is public catalog data and
+  /// gives the next account an instant first paint.
+  static Future<void> clearUserScopedData() async {
+    final db = await _database;
+    await db.transaction((txn) async {
+      await txn.delete(tRecentViews);
+      await txn.delete(tSearchHistory);
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
   // Row <-> model mapping
   // ══════════════════════════════════════════════════════════════════════
 
