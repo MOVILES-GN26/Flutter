@@ -41,6 +41,17 @@ class HomeViewModel extends ChangeNotifier {
   Future<List<Listing>> getRecentlyViewed({int limit = 10}) =>
       LocalDbService.getRecentlyViewed(limit: limit);
 
+  /// Drop every piece of in-memory state tied to the prior session so the
+  /// next user does not briefly see the previous account's feed before
+  /// [loadHomeData] refetches.
+  void resetForLogout() {
+    _status = HomeStatus.initial;
+    _errorMessage = null;
+    _recentlyAddedItems = const [];
+    _trendingCategories = const [];
+    notifyListeners();
+  }
+
   /// Load recent products and trending categories in parallel.
   /// Cached results remain visible until the fresh ones arrive.
   Future<void> loadHomeData() async {

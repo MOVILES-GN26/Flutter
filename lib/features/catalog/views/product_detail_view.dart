@@ -28,6 +28,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   final ApiService _apiService = ApiService();
   final StorageService _storageService = StorageService();
   int? _viewCount;
+  DateTime? _viewStatsCachedAt;
   int? _favoritesCount;
   bool _isOwner = false;
 
@@ -63,14 +64,28 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       if (mounted) {
         setState(() {
           if (stats != null) {
-            _viewCount = stats['total_views'] as int? ??
-                stats['views'] as int? ??
-                stats['count'] as int?;
+            final data = stats.data;
+            _viewCount = data['total_views'] as int? ??
+                data['views'] as int? ??
+                data['count'] as int?;
+            _viewStatsCachedAt = stats.updatedAt;
           }
           _favoritesCount = favCount;
         });
       }
     }
+  }
+
+  /// Human-friendly suffix shown next to the view count when the badge is
+  /// populated from cache. Returns an empty string for fresh values so the
+  /// UI is identical to online.
+  String _viewsFreshnessSuffix() {
+    final cached = _viewStatsCachedAt;
+    if (cached == null) return '';
+    final diff = DateTime.now().difference(cached);
+    if (diff.inMinutes < 60) return ' · ${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return ' · ${diff.inHours}h ago';
+    return ' · ${diff.inDays}d ago';
   }
 
   Future<String?> _getCurrentUserId() async {
@@ -168,10 +183,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (_viewCount != null) ...[  
+                              if (_viewCount != null) ...[
                                 _statBadge(
                                   Icons.visibility_outlined,
-                                  '$_viewCount views',
+                                  '$_viewCount views${_viewsFreshnessSuffix()}',
                                 ),
                                 if (_favoritesCount != null)
                                   const SizedBox(width: 6),

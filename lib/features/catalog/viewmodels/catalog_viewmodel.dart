@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/local_db_service.dart';
@@ -45,6 +44,8 @@ class CatalogViewModel extends ChangeNotifier {
   List<Listing> _nearbyProducts = [];
   bool _locationLoaded = false;
   bool _isOnCampus = false;
+  bool _locationIsFresh = true;
+  DateTime? _locationCachedAt;
 
   CatalogStatus get status => _status;
   List<Listing> get products => List.unmodifiable(_products);
@@ -59,6 +60,15 @@ class CatalogViewModel extends ChangeNotifier {
   List<Listing> get nearbyProducts => List.unmodifiable(_nearbyProducts);
   bool get locationLoaded => _locationLoaded;
   bool get isOnCampus => _isOnCampus;
+
+  /// True when the active location came from a live GPS fix. False when we
+  /// fell back to a persisted fix — the UI can use this to add a discrete
+  /// "last known location" hint.
+  bool get locationIsFresh => _locationIsFresh;
+
+  /// When the fallback fix was captured, or null if the location is fresh
+  /// or unavailable.
+  DateTime? get locationCachedAt => _locationCachedAt;
 
   /// Categories sorted by trending (most searched first), rest appended.
   List<String> get sortedCategories {
@@ -78,18 +88,36 @@ class CatalogViewModel extends ChangeNotifier {
 
   /// Detect the user's location and determine which campus building
   /// they are closest to. Call once when the catalog screen loads.
+  ///
+  /// Offline-first: uses [LocationService.resolvePosition] which tries a
+  /// fresh GPS fix first, then falls back to the last cached one (<24h).
+  /// If both fail, [locationLoaded] still becomes true and the UI simply
+  /// hides the "nearby" section — no error, no spinner.
   Future<void> detectLocation() async {
-    final Position? position = await _locationService.getCurrentPosition();
-    if (position == null) {
+    final resolved = await _locationService.resolvePosition();
+    if (resolved == null) {
       _locationLoaded = true;
+      _locationIsFresh = true;
+      _locationCachedAt = null;
       notifyListeners();
       return;
     }
 
-    _isOnCampus = _locationService.isOnCampus(position);
-    _nearestBuilding = _locationService.getNearestBuilding(position);
-    _nearbyBuildings = _locationService.getNearbyBuildings(position);
+    _isOnCampus = _locationService.isOnCampusAt(
+      resolved.latitude,
+      resolved.longitude,
+    );
+    _nearestBuilding = _locationService.getNearestBuildingAt(
+      resolved.latitude,
+      resolved.longitude,
+    );
+    _nearbyBuildings = _locationService.getNearbyBuildingsAt(
+      resolved.latitude,
+      resolved.longitude,
+    );
     _locationLoaded = true;
+    _locationIsFresh = resolved.isFresh;
+    _locationCachedAt = resolved.cachedAt;
 
     _partitionNearbyProducts();
     notifyListeners();
@@ -228,5 +256,22 @@ class CatalogViewModel extends ChangeNotifier {
       condition: _selectedCondition,
       priceSort: _selectedPriceSort,
     );
+  }
+
+  /// Wipes filters, products, and trending state so the next account does
+  /// not inherit the previous user's search/filter UI. Geolocation-derived
+  /// fields (nearest building, nearby buildings) are device-scoped and
+  /// survive on purpose.
+  void resetForLogout() {
+    _status = CatalogStatus.initial;
+    _errorMessage = null;
+    _products = const [];
+    _nearbyProducts = const [];
+    _trendingCategories = const [];
+    _searchQuery = '';
+    _selectedCategory = null;
+    _selectedCondition = null;
+    _selectedPriceSort = null;
+    notifyListeners();
   }
 }

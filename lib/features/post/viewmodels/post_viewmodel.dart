@@ -260,4 +260,17 @@ class PostViewModel extends ChangeNotifier {
     _selectedStoreId = PreferencesService.instance.defaultStoreId;
     notifyListeners();
   }
+
+  /// Wipes every piece of in-memory state tied to the logged-in user.
+  /// Must run AFTER [AuthViewModel.logout] because that call is what
+  /// deletes the draft files and stores on disk that this state referenced.
+  void resetForLogout() {
+    _status = PostStatus.initial;
+    _errorMessage = null;
+    _images.clear();
+    _stores = const [];
+    _storesLoaded = false;
+    _selectedStoreId = null;
+    notifyListeners();
+  }
 }

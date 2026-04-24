@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/uniandes_majors.dart';
+import '../../../core/viewmodels/connectivity_viewmodel.dart';
+import '../../../core/widgets/offline_banner.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../navigation/main_screen.dart';
 import 'login_view.dart';
@@ -55,6 +57,19 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   void _handleRegister() {
+    // Guard against race: a user tap that lands right as the device drops
+    // connectivity would otherwise spin forever on a dead request.
+    if (context.read<ConnectivityViewModel>().isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "You're offline. Reconnect to create your account.",
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     if (_formKey.currentState!.validate()) {
       context.read<AuthViewModel>().register(
             firstName: _firstNameController.text.trim(),
@@ -86,10 +101,23 @@ class _RegisterViewState extends State<RegisterView> {
         ),
       ),
       body: SafeArea(
-        child: Consumer<AuthViewModel>(
-          builder: (context, authVm, _) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          children: [
+            const OfflineBanner(
+              message: 'You are offline · sign-up needs a connection',
+            ),
+            Expanded(child: _buildFormScroll()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormScroll() {
+    return Consumer<AuthViewModel>(
+      builder: (context, authVm, _) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -417,8 +445,6 @@ class _RegisterViewState extends State<RegisterView> {
               ),
             );
           },
-        ),
-      ),
-    );
+        );
   }
 }

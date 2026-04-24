@@ -170,4 +170,31 @@ class FileStorageService {
     );
     return files;
   }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Session cleanup
+  // ══════════════════════════════════════════════════════════════════════
+
+  /// Delete every file this service manages for the current user session:
+  /// draft images, queued-post images, and archived payment proofs. Invoke
+  /// from the logout path so the next account starts with an empty disk.
+  static Future<void> wipeUserFiles() async {
+    await Future.wait([
+      _deleteDirContents(_postDraftsDir),
+      _deleteDirContents(_pendingPostsImagesDir),
+      _deleteDirContents(_paymentProofsDir),
+    ]);
+  }
+
+  /// Recursively deletes every entry inside [_subdir(name)] without removing
+  /// the folder itself. Swallows individual failures so a single locked file
+  /// never blocks the rest of the wipe.
+  static Future<void> _deleteDirContents(String name) async {
+    final dir = await _subdir(name);
+    for (final entity in dir.listSync()) {
+      try {
+        await entity.delete(recursive: true);
+      } catch (_) {/* keep going */}
+    }
+  }
 }

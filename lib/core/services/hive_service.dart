@@ -20,6 +20,8 @@ class HiveService {
   static const String _userBox = 'user_box';
   static const String _homeBox = 'home_snapshot_box';
   static const String _pendingPostsBox = 'pending_posts_box';
+  static const String _pendingViewsBox = 'pending_views_box';
+  static const String _productStatsBox = 'product_stats_box';
 
   // ── Keys inside single-slot boxes ─────────────────────────────────────
   static const String _kCurrentUser = 'current_user';
@@ -37,6 +39,8 @@ class HiveService {
       Hive.openBox(_userBox),
       Hive.openBox(_homeBox),
       Hive.openBox(_pendingPostsBox),
+      Hive.openBox(_pendingViewsBox),
+      Hive.openBox(_productStatsBox),
     ]);
   }
 
@@ -130,6 +134,9 @@ class HiveService {
     return DateTime.tryParse(iso);
   }
 
+  /// Wipes the full home snapshot (trending + recent + updated-at).
+  static Future<void> clearHomeSnapshot() => _home.clear();
+
   // ══════════════════════════════════════════════════════════════════════
   // Pending posts queue
   // ══════════════════════════════════════════════════════════════════════
@@ -149,6 +156,88 @@ class HiveService {
   static Future<void> removePendingPost(String id) => _pending.delete(id);
 
   static Future<void> clearPendingPosts() => _pending.clear();
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Pending view events (write-behind queue)
+  // ══════════════════════════════════════════════════════════════════════
+  //
+  // Fire-and-forget view registrations that failed due to no network.
+  // Keyed by productId so the same product viewed N times offline still
+  // occupies one slot (backend-side dedupe is also fine — either works).
+
+  static Box get _pendingViews => Hive.box(_pendingViewsBox);
+
+  /// Product IDs with a pending view registration. Order doesn't matter;
+  /// the server-side counter is monotonic.
+  static List<String> getPendingViewIds() =>
+      _pendingViews.keys.cast<String>().toList();
+
+  static Future<void> enqueuePendingView(String productId) =>
+      _pendingViews.put(productId, DateTime.now().toIso8601String());
+
+  static Future<void> removePendingView(String productId) =>
+      _pendingViews.delete(productId);
+
+  static Future<void> clearPendingViews() => _pendingViews.clear();
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Product stats cache (per-product view counts)
+  // ══════════════════════════════════════════════════════════════════════
+  //
+  // Sellers want current numbers on their own products. We still go to the
+  // network first (see [ApiService.getProductStats]) but keep a cache as a
+  // fallback so an offline seller sees "24 views · 3h ago" instead of a
+  // blank badge.
+
+  static Box get _productStats => Hive.box(_productStatsBox);
+
+  /// Cached stats for [productId], or null if we've never fetched them.
+  /// The stored map mirrors the API response shape.
+  static ({Map<String, dynamic> data, DateTime updatedAt})? getProductStats(
+      String productId) {
+    final raw = _productStats.get(productId);
+    if (raw is! Map) return null;
+    final map = _asStringMap(raw);
+    final iso = map['_cached_at'] as String?;
+    final updatedAt =
+        iso != null ? DateTime.tryParse(iso) : null;
+    if (updatedAt == null) return null;
+    final data = Map<String, dynamic>.from(map)..remove('_cached_at');
+    return (data: data, updatedAt: updatedAt);
+  }
+
+  static Future<void> putProductStats(
+    String productId,
+    Map<String, dynamic> stats,
+  ) {
+    final payload = {
+      ...stats,
+      '_cached_at': DateTime.now().toIso8601String(),
+    };
+    return _productStats.put(productId, payload);
+  }
+
+  static Future<void> clearProductStats() => _productStats.clear();
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Session cleanup
+  // ══════════════════════════════════════════════════════════════════════
+
+  /// Wipe every Hive box that belongs to the current user's session. Call
+  /// from the logout path to stop the next account from seeing leftover
+  /// favorites, a stale home snapshot, cached user info, or — critically —
+  /// a pending post / view event that would otherwise be re-uploaded under
+  /// the wrong JWT.
+  static Future<void> wipeUserScoped() async {
+    await Future.wait([
+      clearFavorites(),
+      clearUser(),
+      clearHomeSnapshot(),
+      clearPendingPosts(),
+      clearPendingViews(),
+      clearProductStats(),
+    ]);
+  }
 
   // ══════════════════════════════════════════════════════════════════════
   // Helpers

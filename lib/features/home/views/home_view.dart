@@ -4,84 +4,131 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../catalog/views/product_detail_view.dart';
 import '../../../core/constants/post_categories.dart';
 import '../../../core/models/listing.dart';
+import '../../../core/viewmodels/connectivity_viewmodel.dart';
+import '../../../core/widgets/empty_state_view.dart';
+import '../../../core/widgets/offline_banner.dart';
 import '../viewmodels/home_viewmodel.dart';
 
-/// Vista de Home
+/// Vista de Home — implementa Cache-then-Network (stale-while-revalidate).
+/// Paints from the Hive snapshot instantly, then auto-refreshes whenever
+/// connectivity comes back. Never shows a blank page — falls back to an
+/// explicit "cold-start offline" empty state when no cache exists.
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
-  
+
   @override
   State<HomeView> createState() => _HomeViewState();
 }
 
 class _HomeViewState extends State<HomeView> {
   final TextEditingController _searchController = TextEditingController();
-  
+  ConnectivityViewModel? _connectivity;
+  bool _wasOffline = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<HomeViewModel>().loadHomeData();
+      _connectivity = context.read<ConnectivityViewModel>();
+      _wasOffline = _connectivity!.isOffline;
+      _connectivity!.addListener(_onConnectivityChanged);
     });
   }
-  
+
+  /// Auto-refresh the feed the moment the device regains connectivity.
+  /// Avoids the user needing to pull-to-refresh after a tunnel / elevator.
+  void _onConnectivityChanged() {
+    final c = _connectivity;
+    if (c == null || !mounted) return;
+    if (_wasOffline && c.isOnline) {
+      context.read<HomeViewModel>().loadHomeData();
+    }
+    _wasOffline = c.isOffline;
+  }
+
   @override
   void dispose() {
+    _connectivity?.removeListener(_onConnectivityChanged);
     _searchController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
         title: const Text('AndesHub'),
       ),
-      
+
       body: SafeArea(
         child: Consumer<HomeViewModel>(
           builder: (context, viewModel, child) {
-            if (viewModel.status == HomeStatus.loading &&
-                viewModel.recentlyAddedItems.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            
-            if (viewModel.status == HomeStatus.error) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(viewModel.errorMessage ?? 'Error al cargar datos'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => viewModel.loadHomeData(),
-                      child: const Text('Reintentar'),
-                    ),
-                  ],
+            return Column(
+              children: [
+                OfflineBanner(
+                  message: viewModel.recentlyAddedItems.isEmpty
+                      ? 'Offline'
+                      : 'Offline · showing saved data',
+                  lastUpdated: viewModel.lastUpdatedAt,
                 ),
-              );
-            }
-            
-            return SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  
-                  // Hero section con imagen de fondo y texto
-                  _buildHeroSection(),
-                  
-                  // Search bar
-                  _buildSearchBar(),
-                  
-                  // Categorías
-                  _buildCategories(viewModel),
-                  
-                  // Recently Added
-                  _buildRecentlyAdded(viewModel),
-                ],
-              ),
+                Expanded(child: _buildBody(viewModel)),
+              ],
             );
           },
+        ),
+      ),
+    );
+  }
+
+  /// Decision tree for what to paint in the body:
+  ///   * Have cached data  → render the feed (even if refresh failed).
+  ///   * No cache + loading → spinner (bounded; not "infinite" since
+  ///     [loadHomeData] has a timeout baked in via the API layer).
+  ///   * No cache + offline → explicit cold-start empty state.
+  ///   * No cache + online error → retry-enabled empty state.
+  Widget _buildBody(HomeViewModel vm) {
+    final hasCache = vm.recentlyAddedItems.isNotEmpty ||
+        vm.trendingCategories.isNotEmpty;
+    if (hasCache) return _buildFeed(vm);
+
+    if (vm.status == HomeStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final isOffline = context.read<ConnectivityViewModel>().isOffline;
+    if (isOffline) {
+      return EmptyStateView(
+        icon: Icons.cloud_off_outlined,
+        title: 'You are offline',
+        message:
+            "Connect once to download the AndesHub feed. You'll be able to browse it offline afterwards.",
+      );
+    }
+
+    return EmptyStateView(
+      icon: Icons.error_outline,
+      title: "Couldn't load the feed",
+      message: vm.errorMessage ?? 'Check your connection and try again.',
+      actionLabel: 'Retry',
+      onAction: vm.loadHomeData,
+    );
+  }
+
+  Widget _buildFeed(HomeViewModel viewModel) {
+    return RefreshIndicator(
+      onRefresh: viewModel.loadHomeData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeroSection(),
+            _buildSearchBar(),
+            _buildCategories(viewModel),
+            _buildRecentlyAdded(viewModel),
+          ],
         ),
       ),
     );
