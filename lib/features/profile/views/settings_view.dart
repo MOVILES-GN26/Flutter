@@ -2,6 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/listing.dart';
+import '../../../core/services/preferences_service.dart';
+import '../../../core/viewmodels/theme_viewmodel.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import '../../auth/views/login_view.dart';
 import '../viewmodels/profile_viewmodel.dart';
@@ -34,6 +36,13 @@ class SettingsView extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
             children: [
+              // ── Appearance ──
+              const _SectionHeader(title: 'Appearance'),
+              const SizedBox(height: 12),
+              const _ThemePicker(),
+
+              const SizedBox(height: 32),
+
               // ── Account Settings ──
               const _SectionHeader(title: 'Account Settings'),
               const SizedBox(height: 12),
@@ -352,6 +361,137 @@ class _ManageListingCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Theme picker (auto / light / dark) — persisted via PreferencesService
+// ─────────────────────────────────────────────
+class _ThemePicker extends StatelessWidget {
+  const _ThemePicker();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeVm = context.watch<ThemeViewModel>();
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.brightness_6_outlined,
+                size: 22,
+                color: cs.onSurface.withValues(alpha: 0.6),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Theme',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _ThemeChip(
+                label: 'Auto',
+                icon: Icons.brightness_auto_outlined,
+                value: ThemePreference.auto,
+                current: themeVm.preference,
+                onTap: themeVm.setPreference,
+              ),
+              const SizedBox(width: 8),
+              _ThemeChip(
+                label: 'Light',
+                icon: Icons.light_mode_outlined,
+                value: ThemePreference.light,
+                current: themeVm.preference,
+                onTap: themeVm.setPreference,
+              ),
+              const SizedBox(width: 8),
+              _ThemeChip(
+                label: 'Dark',
+                icon: Icons.dark_mode_outlined,
+                value: ThemePreference.dark,
+                current: themeVm.preference,
+                onTap: themeVm.setPreference,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final ThemePreference value;
+  final ThemePreference current;
+  final ValueChanged<ThemePreference> onTap;
+
+  const _ThemeChip({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.current,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = current == value;
+    final cs = Theme.of(context).colorScheme;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onTap(value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? cs.primary : cs.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? cs.primary : cs.outlineVariant,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: selected
+                    ? cs.onPrimary
+                    : cs.onSurface.withValues(alpha: 0.7),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: selected
+                      ? cs.onPrimary
+                      : cs.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

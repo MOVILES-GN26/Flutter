@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/preferences_service.dart';
 import 'register_view.dart';
 
 /// Vista de Onboarding
@@ -50,6 +51,8 @@ class _OnboardingViewState extends State<OnboardingView> {
   }
 
   void _goToRegister() {
+    // Mark onboarding as seen so the AuthGate skips it on next launches.
+    PreferencesService.instance.setOnboardingCompleted(true);
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const RegisterView()),

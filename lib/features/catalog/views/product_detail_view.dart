@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/local_db_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../favorites/viewmodels/favorites_viewmodel.dart';
 import '../../payments/views/complete_payment_view.dart';
@@ -52,6 +53,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     if (mounted) setState(() => _isOwner = isOwner);
 
     if (!isOwner) {
+      // Mirror the view to the local DB so the "Recently Viewed" feed keeps
+      // working offline, independently of whether the remote call succeeds.
+      await LocalDbService.registerView(widget.item);
       await _apiService.registerView(id);
     } else {
       final stats = await _apiService.getProductStats(id);

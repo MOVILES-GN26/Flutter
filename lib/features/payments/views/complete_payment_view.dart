@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/file_storage_service.dart';
 import 'order_success_view.dart';
 
 /// Screen where the buyer uploads a payment receipt/screenshot and submits proof.
@@ -73,6 +74,13 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
       // 2. Upload proof
       final bytes = await _proofFile!.readAsBytes();
       await _apiService.uploadPaymentProof(orderId, bytes, _proofFile!.name);
+
+      // 2b. Archive a local copy so the buyer has an offline record.
+      await FileStorageService.savePaymentProof(
+        orderId: orderId,
+        bytes: bytes,
+        originalFileName: _proofFile!.name,
+      );
 
       // 3. Navigate to success screen
       if (mounted) {

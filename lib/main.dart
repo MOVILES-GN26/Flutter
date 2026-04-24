@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'core/auth_gate.dart';
+import 'core/services/hive_service.dart';
+import 'core/services/local_db_service.dart';
+import 'core/services/preferences_service.dart';
 import 'core/viewmodels/theme_viewmodel.dart';
 import 'features/auth/viewmodels/auth_viewmodel.dart';
 import 'features/catalog/viewmodels/catalog_viewmodel.dart';
@@ -10,7 +13,13 @@ import 'features/home/viewmodels/home_viewmodel.dart';
 import 'features/post/viewmodels/post_viewmodel.dart';
 import 'features/profile/viewmodels/profile_viewmodel.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Future.wait([
+    PreferencesService.init(),
+    HiveService.init(),
+    LocalDbService.init(),
+  ]);
   runApp(const MyApp());
 }
 

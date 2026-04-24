@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/preferences_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../features/auth/views/login_view.dart';
 import '../../features/auth/views/onboarding_view.dart';
@@ -7,76 +8,72 @@ import '../../features/navigation/main_screen.dart';
 
 enum AuthDestination { home, onboarding, login }
 
-/// AuthGate - Decide el destino inicial basado en el estado de autenticación
+/// AuthGate - Decide el destino inicial basado en el estado de autenticación.
+///
+/// Resolution order:
+///   1. [forceDestination] override (dev-only).
+///   2. Valid access/refresh token → [AuthDestination.home].
+///   3. No tokens, onboarding not yet completed → [AuthDestination.onboarding].
+///   4. No tokens, onboarding already completed → [AuthDestination.login].
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
-  
-  // TODO: Cambiar este valor para forzar el destino durante desarrollo
 
-  static const AuthDestination? forceDestination = AuthDestination.onboarding; // null = check real token | AuthDestination.home/.onboarding/.login to force
+  /// Set to a non-null value to force a destination during development.
+  /// Leave as `null` in production to honor the real resolution logic.
+  static const AuthDestination? forceDestination = null;
 
   Future<AuthDestination> _determineDestination() async {
-    // Si hay un destino forzado, usarlo
     if (forceDestination != null) {
       return forceDestination!;
     }
-    
+
     final storageService = StorageService();
     final apiService = ApiService();
-    
-    // Verificar si hay tokens en storage
+    final prefs = PreferencesService.instance;
+
     final accessToken = await storageService.getAccessToken();
     final refreshToken = await storageService.getRefreshToken();
-    
-    // Caso 1: No hay tokens -> Onboarding
+
+    // No tokens → decide between onboarding and login based on whether the
+    // user has ever completed the onboarding flow before.
     if (accessToken == null && refreshToken == null) {
-      return AuthDestination.onboarding;
+      return prefs.onboardingCompleted
+          ? AuthDestination.login
+          : AuthDestination.onboarding;
     }
-    
-    // Caso 2: Hay tokens -> Verificar validez
+
+    // Try the access token first.
     if (accessToken != null) {
-      // Intentar validar con el endpoint /home
       final isHomeValid = await apiService.validateHomeAccess();
-      
-      if (isHomeValid) {
-        return AuthDestination.home;
-      }
+      if (isHomeValid) return AuthDestination.home;
     }
-    
-    // Caso 3: Access token falló, intentar refresh
+
+    // Access token failed (or was missing) — try to refresh.
     if (refreshToken != null) {
-      final refreshSuccess = await apiService.refreshToken();
-      
-      if (refreshSuccess) {
-        // Si el refresh fue exitoso, validar de nuevo
+      final refreshed = await apiService.refreshToken();
+      if (refreshed) {
         final isHomeValid = await apiService.validateHomeAccess();
-        if (isHomeValid) {
-          return AuthDestination.home;
-        }
+        if (isHomeValid) return AuthDestination.home;
       }
     }
-    
-    // Caso 4: Todo falló -> Login
+
+    // Tokens are unusable. Send the user to login (not onboarding —
+    // a returning user with stale tokens has clearly onboarded already).
     return AuthDestination.login;
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<AuthDestination>(
       future: _determineDestination(),
       builder: (context, snapshot) {
-        // Mostrar loading mientras se determina el destino
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
-        
-        // Navegar al destino correspondiente
+
         final destination = snapshot.data ?? AuthDestination.onboarding;
-        
         switch (destination) {
           case AuthDestination.home:
             return const MainScreen();

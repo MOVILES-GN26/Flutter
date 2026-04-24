@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/hive_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../auth/models/auth_user.dart';
 
@@ -41,28 +42,29 @@ class ProfileViewModel extends ChangeNotifier {
   String? get avatarUrl => _avatarUrl;
   String? get phoneNumber => _phoneNumber;
 
-  /// Loads the profile. Accepts an [AuthUser] from AuthViewModel
-  /// (populated when the user logged in during the current session).
-  /// Falls back to JWT decoding when [authUser] is null.
+  /// Loads the profile.
+  ///
+  /// Source-of-truth order for user info:
+  ///   1. [authUser] — populated when the user logged in this session.
+  ///   2. Hive cache — survives restarts while tokens are valid.
+  ///   3. JWT payload decoding — last resort.
   Future<void> loadProfile({AuthUser? authUser}) async {
     _status = ProfileStatus.loading;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // Populate user info
       if (authUser != null && authUser.id.isNotEmpty) {
-        _userId = authUser.id;
-        _name = authUser.fullName;
-        _email = authUser.email;
-        _major = authUser.major;
-        _firstName = authUser.firstName;
-        _lastName = authUser.lastName;
+        _applyAuthUser(authUser);
       } else {
-        await _loadUserFromToken();
+        final cached = HiveService.getUser();
+        if (cached != null && cached.id.isNotEmpty) {
+          _applyAuthUser(cached);
+        } else {
+          await _loadUserFromToken();
+        }
       }
 
-      // Fetch user listings
       if (_userId != null && _userId!.isNotEmpty) {
         _listings = await _apiService.getUserProducts(_userId!);
       }
@@ -75,6 +77,15 @@ class ProfileViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  void _applyAuthUser(AuthUser user) {
+    _userId = user.id;
+    _name = user.fullName;
+    _email = user.email;
+    _major = user.major;
+    _firstName = user.firstName;
+    _lastName = user.lastName;
   }
 
   /// Deletes a product by ID and removes it from the local list.
@@ -115,6 +126,18 @@ class ProfileViewModel extends ChangeNotifier {
         _major = major;
         _name = '$firstName $lastName'.trim();
         if (phoneNumber != null) _phoneNumber = phoneNumber;
+
+        // Keep the cached AuthUser in sync so other screens hydrated from
+        // Hive (e.g. AuthViewModel on cold start) see the updated values.
+        if (_userId != null && _email != null) {
+          await HiveService.putUser(AuthUser(
+            id: _userId!,
+            email: _email!,
+            firstName: firstName,
+            lastName: lastName,
+            major: major,
+          ));
+        }
         notifyListeners();
       }
       return success;
