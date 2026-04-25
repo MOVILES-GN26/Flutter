@@ -22,17 +22,6 @@ import 'features/profile/viewmodels/profile_viewmodel.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ── Configure Flutter's in-memory image cache ─────────────────────────
-  // Default: 100 images / 100 MB (LRU).
-  // Bumped to 200 / 150 MB because the Home screen loads many thumbnails
-  // via horizontal scroll; the stock limits cause visible reloads when the
-  // user scrolls back.
-  //
-  // Image cache flow:
-  //   URL → memory LRU (ImageCache, 200/150 MB)
-  //       → disk LRU (flutter_cache_manager, 400 objects / 30 days)
-  //       → network (HTTP GET)
-  //       → decode → display
   PaintingBinding.instance.imageCache
     ..maximumSize = 200
     ..maximumSizeBytes = 150 * (1 << 20); // 150 MB
@@ -174,14 +163,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// Sits just inside the MultiProvider and drains every offline queue the
-/// moment connectivity is restored. One instance is mounted for the entire
-/// app lifetime, so all background flushes happen here — individual screens
-/// don't need to wire their own listeners.
-///
-/// Also subscribes to the app-wide [QueueEventBus] Stream so it can show a
-/// single global SnackBar whenever a queued post/view is flushed, no matter
-/// which screen is currently on top.
+
 class _NetworkSyncListener extends StatefulWidget {
   final Widget child;
   const _NetworkSyncListener({required this.child});

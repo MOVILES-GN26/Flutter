@@ -39,14 +39,6 @@ class CatalogViewModel extends ChangeNotifier {
   // ── Trending state ──
   List<String> _trendingCategories = [];
 
-  /// LRU cache for trending-category lookups.
-  /// `sortedCategories` uses `contains()` which is O(n) on each rebuild;
-  /// this LRU converts repeated lookups to O(1).
-  ///
-  /// | Instance       | K             | V    | maxSize | Why LRU here                                  |
-  /// |----------------|---------------|------|---------|-----------------------------------------------|
-  /// | trendingLookup | String (query) | bool | 20      | sortedCategories recalculates contains() each |
-  /// |                |               |      |         | rebuild; LRU RAM avoids the linear scan       |
   final LruCache<String, bool> _trendingLookup = LruCache(maxSize: 20);
 
   // ── Location state ──
@@ -72,17 +64,10 @@ class CatalogViewModel extends ChangeNotifier {
   bool get locationLoaded => _locationLoaded;
   bool get isOnCampus => _isOnCampus;
 
-  /// True when the active location came from a live GPS fix. False when we
-  /// fell back to a persisted fix — the UI can use this to add a discrete
-  /// "last known location" hint.
   bool get locationIsFresh => _locationIsFresh;
 
-  /// When the fallback fix was captured, or null if the location is fresh
-  /// or unavailable.
   DateTime? get locationCachedAt => _locationCachedAt;
 
-  /// Categories sorted by trending (most searched first), rest appended.
-  /// Uses [_trendingLookup] LRU to avoid O(n) `contains()` on every rebuild.
   List<String> get sortedCategories {
     if (_trendingCategories.isEmpty) return postCategories;
     final trending = _trendingCategories.where((c) {
@@ -111,13 +96,6 @@ class CatalogViewModel extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Detect the user's location and determine which campus building
-  /// they are closest to. Call once when the catalog screen loads.
-  ///
-  /// Offline-first: uses [LocationService.resolvePosition] which tries a
-  /// fresh GPS fix first, then falls back to the last cached one (<24h).
-  /// If both fail, [locationLoaded] still becomes true and the UI simply
-  /// hides the "nearby" section — no error, no spinner.
   Future<void> detectLocation() async {
     final resolved = await _locationService.resolvePosition();
     if (resolved == null) {
@@ -159,14 +137,6 @@ class CatalogViewModel extends ChangeNotifier {
         .toList();
   }
 
-  /// Fetch products and trending categories in parallel.
-  ///
-  /// Stale-while-revalidate against sqflite:
-  ///   1. Run the same filter query against the local cache and emit those
-  ///      results immediately so the list paints without network latency.
-  ///   2. Hit the API. On success, replace the in-memory list and UPSERT
-  ///      every listing into the cache. On failure, keep the cached data
-  ///      and surface an error only if the cache was empty.
   Future<void> loadProducts() async {
     // ── 1. Cached results first ──
     final cached = await LocalDbService.queryListings(
@@ -298,10 +268,6 @@ class CatalogViewModel extends ChangeNotifier {
         );
   }
 
-  /// Wipes filters, products, and trending state so the next account does
-  /// not inherit the previous user's search/filter UI. Geolocation-derived
-  /// fields (nearest building, nearby buildings) are device-scoped and
-  /// survive on purpose.
   void resetForLogout() {
     _status = CatalogStatus.initial;
     _errorMessage = null;

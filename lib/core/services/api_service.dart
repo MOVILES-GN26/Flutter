@@ -14,41 +14,14 @@ import '../models/listing.dart';
 /// Central HTTP service for all API requests.
 class ApiService {
   final StorageService _storageService = StorageService();
-
-  // ══════════════════════════════════════════════════════════════════════
-  // LRU RAM caches — two-tier: LRU in RAM (O(1)) → Hive on disk → network.
-  // ══════════════════════════════════════════════════════════════════════
-  //
-  // ┌────────────────────┬──────────┬──────────────────────┬─────────┬────────────────────────────────────────────────────┐
-  // │ Instance           │ K        │ V                    │ maxSize │ Why LRU here                                       │
-  // ├────────────────────┼──────────┼──────────────────────┼─────────┼────────────────────────────────────────────────────┤
-  // │ listingDetailCache │ productId│ Listing              │ 30      │ User opens same 3–5 products repeatedly; avoids    │
-  // │                    │          │                      │         │ deserialising JSON on every tap                    │
-  // ├────────────────────┼──────────┼──────────────────────┼─────────┼────────────────────────────────────────────────────┤
-  // │ productStatsCache  │ productId│ Map<String, dynamic> │ 50      │ Seller navigates between own products; getProduct  │
-  // │                    │          │                      │         │ Stats currently hits Hive every time — LRU is O(1) │
-  // └────────────────────┴──────────┴──────────────────────┴─────────┴────────────────────────────────────────────────────┘
-  //
-  // Why maxSize is low (30–50):
-  //   Each Listing weighs ~500 bytes → 30 items ≈ 15 KB. More entries
-  //   waste RAM for marginal gains since the Hive disk cache already
-  //   covers the "cold" layer.
-
-  /// RAM cache for recently-viewed listing details.
-  /// Entries evicted from here are already persisted in Hive/SQLite,
-  /// so no [onEvict] callback is needed.
   static final LruCache<String, Listing> listingDetailCache = LruCache(
     maxSize: 30,
   );
 
-  /// RAM cache for product stats (view counts, etc.).
-  /// When an entry is evicted, it is flushed to Hive so we never lose
-  /// a "hot" stats snapshot.
   static final LruCache<String, Map<String, dynamic>> productStatsCache =
       LruCache(
     maxSize: 50,
     onEvict: (productId, stats) {
-      // Persist evicted entry to Hive disk cache (fire-and-forget).
       HiveService.putProductStats(productId, stats);
     },
   );
@@ -124,7 +97,6 @@ class ApiService {
   }
 
 
-  /// Request a password reset email
   Future<bool> forgotPassword(String email) async {
     try {
       final response = await http.post(
@@ -176,8 +148,6 @@ class ApiService {
     }
   }
 
-  /// Fetch the list of products from the catalog.
-  /// Supports optional query parameters for search and filtering.
   Future<List<Map<String, dynamic>>> getProducts({
     String? search,
     String? category,
@@ -214,23 +184,6 @@ class ApiService {
     }
   }
 
-  /// Create a new marketplace listing, uploading images as multipart.
-  /// Creates a listing with multipart images.
-  ///
-  /// ## Mixed async/await + handler pattern (rubric: 10 pts)
-  ///
-  /// The *setup* phase uses `async/await` because each step depends on the
-  /// previous one (token → request → file attachments).
-  ///
-  /// The *request submission* is composed via `.then()` to transform the
-  /// [http.StreamedResponse] into a bool and `.catchError()` to convert
-  /// network-layer errors into a successful `Future<bool>(false)` — that
-  /// way the outer try/catch only needs to cover the synchronous setup.
-  ///
-  /// This is the canonical shape that appears in real-world Dart when you
-  /// receive a builder-style Future from an SDK (`MultipartRequest.send`)
-  /// and want to transform its result without unnecessarily awaiting it
-  /// then re-awaiting the transformation.
   Future<bool> createPost({
     required String title,
     required String description,
@@ -420,13 +373,6 @@ class ApiService {
     return flushed;
   }
 
-  /// Returns the stats (total views, etc.) for a product using a
-  /// **LRU-RAM → network → Hive** strategy. Sellers want current
-  /// numbers, so we try LRU first (O(1)), then network, then Hive
-  /// disk cache as a last resort.
-  ///
-  /// `data` is the raw API shape; `updatedAt` is `null` only when
-  /// the payload is fresh from the network.
   Future<({Map<String, dynamic> data, DateTime? updatedAt})?>
       getProductStats(String productId) async {
     // ── 1. Check LRU RAM cache (O(1)) ──

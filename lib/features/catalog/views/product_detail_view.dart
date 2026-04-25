@@ -14,9 +14,7 @@ import '../../payments/views/complete_payment_view.dart';
 import 'seller_profile_view.dart';
 import '../../profile/views/profile_view.dart';
 
-///
-/// Receives a [Listing] and displays its full information:
-/// hero image, title, price, seller info, description, and action buttons.
+
 class ProductDetailView extends StatefulWidget {
   final Listing item;
 
@@ -78,9 +76,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     }
   }
 
-  /// Human-friendly suffix shown next to the view count when the badge is
-  /// populated from cache. Returns an empty string for fresh values so the
-  /// UI is identical to online.
+
   String _viewsFreshnessSuffix() {
     final cached = _viewStatsCachedAt;
     if (cached == null) return '';
