@@ -235,8 +235,12 @@ class _NetworkSyncListenerState extends State<_NetworkSyncListener> {
   /// Best-effort drain of every write-behind queue. Each `flush*` method
   /// is independently safe to retry, so we don't bother coordinating them.
   Future<void> _flushAllQueues() async {
+    final api = ApiService();
     try {
-      await ApiService().flushPendingViews();
+      await api.flushPendingViews();
+    } catch (_) {/* next reconnect will retry */}
+    try {
+      await api.flushPendingContacts();
     } catch (_) {/* next reconnect will retry */}
     try {
       if (!mounted) return;

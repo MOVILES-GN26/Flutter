@@ -328,6 +328,103 @@ class ApiService {
     }
   }
 
+  /// Logs a buyer→seller direct-contact event (e.g. tapped the WhatsApp
+  /// button). Write-behind: failures are queued in Hive and flushed by
+  /// [flushPendingContacts] on reconnect.
+  ///
+  /// Backs the BQ Type 3:
+  ///   "% of orders in the last N days preceded by a direct contact between
+  ///    the same buyer and seller."
+  Future<void> recordContact({
+    required String productId,
+    required String sellerId,
+    String channel = 'whatsapp',
+  }) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) {
+        // Anonymous users can't be correlated with orders, so the event is
+        // useless for the BQ. Drop it silently.
+        return;
+      }
+      final response = await http
+          .post(
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.analyticsContactEndpoint}'),
+            headers: ApiConfig.authHeaders(token),
+            body: jsonEncode({
+              'product_id': productId,
+              'seller_id': sellerId,
+              'channel': channel,
+            }),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        // Backend reachable but rejected — queue for retry. Lets transient
+        // 5xx blips heal automatically without losing the event.
+        await HiveService.enqueuePendingContact(
+          productId: productId,
+          sellerId: sellerId,
+          channel: channel,
+        );
+      }
+    } catch (e) {
+      debugPrint('[recordContact] queueing offline: $e');
+      await HiveService.enqueuePendingContact(
+        productId: productId,
+        sellerId: sellerId,
+        channel: channel,
+      );
+    }
+  }
+
+ 
+  Future<int> flushPendingContacts() async {
+    final pending = HiveService.getPendingContacts();
+    if (pending.isEmpty) return 0;
+
+    final token = await _storageService.getAccessToken();
+    if (token == null) return 0;
+
+    final headers = ApiConfig.authHeaders(token);
+    final uri =
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.analyticsContactEndpoint}');
+
+    int flushed = 0;
+    for (final entry in pending) {
+      final key = entry['_key'] as String?;
+      if (key == null) continue;
+      try {
+        final response = await http
+            .post(
+              uri,
+              headers: headers,
+              body: jsonEncode({
+                'product_id': entry['product_id'],
+                'seller_id': entry['seller_id'],
+                'channel': entry['channel'] ?? 'whatsapp',
+              }),
+            )
+            .timeout(ApiConfig.connectionTimeout);
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          await HiveService.removePendingContact(key);
+          flushed++;
+        } else {
+          // 4xx with bad payload — drop so we don't loop forever.
+          if (response.statusCode == 400 || response.statusCode == 404) {
+            await HiveService.removePendingContact(key);
+          }
+          break;
+        }
+      } catch (_) {
+        // Still offline — keep remaining for next try.
+        break;
+      }
+    }
+    return flushed;
+  }
+
   /// Drains [HiveService.getPendingViewIds] by POSTing each entry. Stops
   /// on the first failure so we don't hammer the server during a partial
   /// outage. Returns the count of events successfully flushed.

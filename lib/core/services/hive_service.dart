@@ -21,6 +21,7 @@ class HiveService {
   static const String _homeBox = 'home_snapshot_box';
   static const String _pendingPostsBox = 'pending_posts_box';
   static const String _pendingViewsBox = 'pending_views_box';
+  static const String _pendingContactsBox = 'pending_contacts_box';
   static const String _productStatsBox = 'product_stats_box';
 
   // ── Keys inside single-slot boxes ─────────────────────────────────────
@@ -40,6 +41,7 @@ class HiveService {
       Hive.openBox(_homeBox),
       Hive.openBox(_pendingPostsBox),
       Hive.openBox(_pendingViewsBox),
+      Hive.openBox(_pendingContactsBox),
       Hive.openBox(_productStatsBox),
     ]);
   }
@@ -181,6 +183,48 @@ class HiveService {
   static Future<void> clearPendingViews() => _pendingViews.clear();
 
   // ══════════════════════════════════════════════════════════════════════
+  // Pending buyer→seller contact events (write-behind queue)
+  // ══════════════════════════════════════════════════════════════════════
+  //
+  // The user tapped "Contact Seller via WhatsApp" but we couldn't reach the
+  // backend (offline / 5xx). Each row carries the buyer→seller pair plus the
+  // product the contact came from, so the BQ "% of orders preceded by a
+  // direct contact" stays accurate after reconnect.
+
+  static Box get _pendingContacts => Hive.box(_pendingContactsBox);
+
+  /// Return every queued contact event as a list of plain maps. Order is
+  /// preserved by the original microsecond-precision key.
+  static List<Map<String, dynamic>> getPendingContacts() {
+    final keys = _pendingContacts.keys.toList()
+      ..sort((a, b) => a.toString().compareTo(b.toString()));
+    return keys
+        .map((k) => _asStringMap(_pendingContacts.get(k))..putIfAbsent('_key', () => k.toString()))
+        .toList();
+  }
+
+  /// Enqueue a contact event for later flush. Keyed by microsecond timestamp
+  /// so multiple events for the same product don't collide.
+  static Future<void> enqueuePendingContact({
+    required String productId,
+    required String sellerId,
+    String channel = 'whatsapp',
+  }) {
+    final key = DateTime.now().microsecondsSinceEpoch.toString();
+    return _pendingContacts.put(key, {
+      'product_id': productId,
+      'seller_id': sellerId,
+      'channel': channel,
+      'queued_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  static Future<void> removePendingContact(String key) =>
+      _pendingContacts.delete(key);
+
+  static Future<void> clearPendingContacts() => _pendingContacts.clear();
+
+  // ══════════════════════════════════════════════════════════════════════
   // Product stats cache (per-product view counts)
   // ══════════════════════════════════════════════════════════════════════
   //
@@ -235,6 +279,7 @@ class HiveService {
       clearHomeSnapshot(),
       clearPendingPosts(),
       clearPendingViews(),
+      clearPendingContacts(),
       clearProductStats(),
     ]);
   }

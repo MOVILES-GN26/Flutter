@@ -31,6 +31,7 @@ class ApiConfig {
   static const String trendingCategoriesEndpoint = '/trending/categories';
   static const String myStoresEndpoint = '/stores/my-stores';
   static const String interactionsViewEndpoint = '/interactions/view';
+  static const String analyticsContactEndpoint = '/analytics/contact';
   static const String favoritesEndpoint = '/users/me/favorites';
   static String favoriteCountEndpoint(String productId) =>
       '/products/$productId/favorites/count';

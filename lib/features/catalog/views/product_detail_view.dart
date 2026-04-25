@@ -449,6 +449,21 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   );
                   return;
                 }
+
+                // BQ Type 3 (dashboard): log the buyer→seller contact event
+                // so we can later compute "% of purchases preceded by a
+                // direct contact". Fire-and-forget — never block the user
+                // from opening WhatsApp on this.
+                final productId = widget.item.id;
+                final sellerId = widget.item.sellerId;
+                if (productId != null && sellerId != null && !_isOwner) {
+                  // ignore: unawaited_futures
+                  _apiService.recordContact(
+                    productId: productId,
+                    sellerId: sellerId,
+                  );
+                }
+
                 final phone = rawPhone.startsWith('57')
                     ? rawPhone
                     : '57$rawPhone';
