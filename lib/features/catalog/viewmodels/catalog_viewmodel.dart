@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../core/cache/lru_cache.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/local_db_service.dart';
@@ -38,6 +39,8 @@ class CatalogViewModel extends ChangeNotifier {
   // ── Trending state ──
   List<String> _trendingCategories = [];
 
+  final LruCache<String, bool> _trendingLookup = LruCache(maxSize: 20);
+
   // ── Location state ──
   String? _nearestBuilding;
   List<String> _nearbyBuildings = [];
@@ -61,20 +64,26 @@ class CatalogViewModel extends ChangeNotifier {
   bool get locationLoaded => _locationLoaded;
   bool get isOnCampus => _isOnCampus;
 
-  /// True when the active location came from a live GPS fix. False when we
-  /// fell back to a persisted fix — the UI can use this to add a discrete
-  /// "last known location" hint.
   bool get locationIsFresh => _locationIsFresh;
 
-  /// When the fallback fix was captured, or null if the location is fresh
-  /// or unavailable.
   DateTime? get locationCachedAt => _locationCachedAt;
 
-  /// Categories sorted by trending (most searched first), rest appended.
   List<String> get sortedCategories {
     if (_trendingCategories.isEmpty) return postCategories;
-    final trending = _trendingCategories.where(postCategories.contains).toList();
-    final rest = postCategories.where((c) => !_trendingCategories.contains(c)).toList();
+    final trending = _trendingCategories.where((c) {
+      final cached = _trendingLookup.get(c);
+      if (cached != null) return cached;
+      final isTrending = postCategories.contains(c);
+      _trendingLookup.put(c, isTrending);
+      return isTrending;
+    }).toList();
+    final rest = postCategories.where((c) {
+      final cached = _trendingLookup.get('!$c');
+      if (cached != null) return cached;
+      final isNotTrending = !_trendingCategories.contains(c);
+      _trendingLookup.put('!$c', isNotTrending);
+      return isNotTrending;
+    }).toList();
     return [...trending, ...rest];
   }
 
@@ -82,17 +91,11 @@ class CatalogViewModel extends ChangeNotifier {
   Future<void> loadTrending() async {
     try {
       _trendingCategories = await _apiService.getTrendingCategories();
+      _trendingLookup.clear(); // invalidate stale lookup entries
       notifyListeners();
     } catch (_) {}
   }
 
-  /// Detect the user's location and determine which campus building
-  /// they are closest to. Call once when the catalog screen loads.
-  ///
-  /// Offline-first: uses [LocationService.resolvePosition] which tries a
-  /// fresh GPS fix first, then falls back to the last cached one (<24h).
-  /// If both fail, [locationLoaded] still becomes true and the UI simply
-  /// hides the "nearby" section — no error, no spinner.
   Future<void> detectLocation() async {
     final resolved = await _locationService.resolvePosition();
     if (resolved == null) {
@@ -134,14 +137,6 @@ class CatalogViewModel extends ChangeNotifier {
         .toList();
   }
 
-  /// Fetch products and trending categories in parallel.
-  ///
-  /// Stale-while-revalidate against sqflite:
-  ///   1. Run the same filter query against the local cache and emit those
-  ///      results immediately so the list paints without network latency.
-  ///   2. Hit the API. On success, replace the in-memory list and UPSERT
-  ///      every listing into the cache. On failure, keep the cached data
-  ///      and surface an error only if the cache was empty.
   Future<void> loadProducts() async {
     // ── 1. Cached results first ──
     final cached = await LocalDbService.queryListings(
@@ -248,20 +243,31 @@ class CatalogViewModel extends ChangeNotifier {
     loadProducts();
   }
 
-  /// Fire-and-forget: we don't await because the current filter state is
-  /// already in memory and the UI doesn't need to wait on disk I/O.
+  /// Persists the current filter selection. Fire-and-forget by design —
+  /// the UI already reflects the change, so we don't block on disk I/O.
+  ///
+  /// ## Why handler-style (.then/.catchError) here instead of async/await?
+  ///
+  /// This method returns `void` and has no caller that cares about
+  /// completion. Using `async` would force us to make the method
+  /// `Future<void>` (no caller awaits it) or suppress the `unawaited_futures`
+  /// lint. The imperative `.then/.catchError` chain is the idiomatic Dart
+  /// way of saying "I don't care when this finishes, but I do want errors
+  /// logged, not silently swallowed."
   void _persistFilters() {
-    PreferencesService.instance.setLastCatalogFilters(
-      category: _selectedCategory,
-      condition: _selectedCondition,
-      priceSort: _selectedPriceSort,
-    );
+    PreferencesService.instance
+        .setLastCatalogFilters(
+          category: _selectedCategory,
+          condition: _selectedCondition,
+          priceSort: _selectedPriceSort,
+        )
+        .then((_) => debugPrint('[Catalog] filters persisted'))
+        .catchError(
+          (Object err) =>
+              debugPrint('[Catalog] filter persistence failed: $err'),
+        );
   }
 
-  /// Wipes filters, products, and trending state so the next account does
-  /// not inherit the previous user's search/filter UI. Geolocation-derived
-  /// fields (nearest building, nearby buildings) are device-scoped and
-  /// survive on purpose.
   void resetForLogout() {
     _status = CatalogStatus.initial;
     _errorMessage = null;

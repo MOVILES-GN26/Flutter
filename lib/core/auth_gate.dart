@@ -8,7 +8,7 @@ import '../../features/navigation/main_screen.dart';
 
 enum AuthDestination { home, onboarding, login }
 
-/// AuthGate - Decide el destino inicial basado en el estado de autenticación.
+/// AuthGate - Decides the initial route based on the authentication state.
 ///
 /// Resolution order:
 ///   1. [forceDestination] override (dev-only).

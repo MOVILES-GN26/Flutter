@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/cache/image_cache_manager.dart';
 import '../../../core/constants/post_categories.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/viewmodels/connectivity_viewmodel.dart';
@@ -786,6 +787,7 @@ class _ProductCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 child: item.imageUrls.isNotEmpty
                     ? CachedNetworkImage(
+                        cacheManager: AndesHubImageCacheManager.instance,
                         imageUrl: item.imageUrls.first,
                         fit: BoxFit.cover,
                         placeholder: (_, _) => const Center(

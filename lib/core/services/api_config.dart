@@ -1,24 +1,24 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 
-/// Configuración central del API
+/// Central API configuration.
 class ApiConfig {
-  // Cuando el backend esté desplegado, reemplazar con la URL de AWS.
+  // Replace with the AWS URL once the backend is deployed.
   static String get baseUrl {
-    // Si es Web, usamos localhost porque el navegador corre en la msima máquina
+    // On Web, use localhost: the browser runs on the same machine as the API.
     if (kIsWeb) {
       return 'http://localhost:3000';
     }
-    // 10.0.2.2 es la IP especial en el emulador de Android para acceder al localhost del PC
+    // 10.0.2.2 is the Android emulator's special alias to the host machine.
     if (Platform.isAndroid) {
       return 'http://192.168.0.100:3000';
     }
-    // Para el simulador de iOS funciona localhost.
-    // Si usas un dispositivo físico real, debes poner la IP de tu computadora (ej: http://192.168.1.10:3000)
+    // The iOS simulator can reach the host via localhost.
+    // For a physical device, use the host computer's LAN IP (e.g. http://192.168.1.10:3000).
     return 'http://localhost:3000';
   }
 
-  // Endpoints disponibles
+  // Available endpoints
   static const String homeEndpoint = '/home';
   static const String refreshEndpoint = '/refresh';
   static const String loginEndpoint = '/auth/login';
@@ -41,7 +41,7 @@ class ApiConfig {
   static const Duration connectionTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
   
-  // Headers comunes
+  // Common headers
   static Map<String, String> get defaultHeaders => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

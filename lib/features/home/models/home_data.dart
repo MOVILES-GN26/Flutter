@@ -1,4 +1,4 @@
-/// Modelo para datos del home
+/// Wrapper for the Home endpoint payload.
 class HomeData {
   final String message;
   final Map<String, dynamic>? data;

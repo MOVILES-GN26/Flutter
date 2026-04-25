@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../../core/cache/image_cache_manager.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/listing.dart';
+import '../../../core/widgets/offline_banner.dart';
 import '../../catalog/views/product_detail_view.dart';
 import '../viewmodels/favorites_viewmodel.dart';
 
@@ -28,8 +30,15 @@ class _FavoritesViewState extends State<FavoritesView> {
       appBar: AppBar(
         title: const Text('Favorites'),
       ),
-      body: Consumer<FavoritesViewModel>(
-        builder: (context, vm, _) {
+      body: Column(
+        children: [
+          const OfflineBanner(
+            message:
+                'Offline · showing saved favorites · changes are paused until reconnect',
+          ),
+          Expanded(
+            child: Consumer<FavoritesViewModel>(
+              builder: (context, vm, _) {
           // ── Loading ──
           if (vm.status == FavoritesStatus.loading && vm.favorites.isEmpty) {
             return const Center(
@@ -135,6 +144,9 @@ class _FavoritesViewState extends State<FavoritesView> {
             ),
           );
         },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -181,6 +193,7 @@ class _FavoriteCard extends StatelessWidget {
                 height: 110,
                 child: item.imageUrls.isNotEmpty
                     ? CachedNetworkImage(
+                        cacheManager: AndesHubImageCacheManager.instance,
                         imageUrl: item.imageUrls.first,
                         fit: BoxFit.cover,
                         placeholder: (_, __) => const Center(

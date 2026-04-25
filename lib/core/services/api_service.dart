@@ -5,14 +5,28 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'api_config.dart';
 import 'hive_service.dart';
+import 'queue_events.dart';
 import 'storage_service.dart';
+import '../cache/lru_cache.dart';
+import '../isolates/json_isolates.dart';
 import '../models/listing.dart';
 
-/// Servicio central para peticiones HTTP al API
+/// Central HTTP service for all API requests.
 class ApiService {
   final StorageService _storageService = StorageService();
+  static final LruCache<String, Listing> listingDetailCache = LruCache(
+    maxSize: 30,
+  );
+
+  static final LruCache<String, Map<String, dynamic>> productStatsCache =
+      LruCache(
+    maxSize: 50,
+    onEvict: (productId, stats) {
+      HiveService.putProductStats(productId, stats);
+    },
+  );
   
-  /// Petición GET a /home con el access token
+  /// GET /home using the current access token.
   Future<bool> validateHomeAccess() async {
     try {
       final token = await _storageService.getAccessToken();
@@ -29,7 +43,7 @@ class ApiService {
     }
   }
   
-  /// Intenta refrescar el token usando el refresh token
+  /// Attempts to refresh the access token using the stored refresh token.
   Future<bool> refreshToken() async {
     try {
       final refreshToken = await _storageService.getRefreshToken();
@@ -55,7 +69,7 @@ class ApiService {
     }
   }
   
-  /// Login del usuario
+  /// User login.
   Future<Map<String, dynamic>?> login(
     String email,
     String password, {
@@ -83,7 +97,6 @@ class ApiService {
   }
 
 
-  /// Request a password reset email
   Future<bool> forgotPassword(String email) async {
     try {
       final response = await http.post(
@@ -98,7 +111,7 @@ class ApiService {
     }
   }
 
-  /// Registro de nuevo usuario
+  /// Register a new user.
   Future<Map<String, dynamic>?> register({
     required String firstName,
     required String lastName,
@@ -135,8 +148,6 @@ class ApiService {
     }
   }
 
-  /// Fetch the list of products from the catalog.
-  /// Supports optional query parameters for search and filtering.
   Future<List<Map<String, dynamic>>> getProducts({
     String? search,
     String? category,
@@ -162,13 +173,10 @@ class ApiService {
       ).timeout(ApiConfig.connectionTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is List) {
-          return List<Map<String, dynamic>>.from(data);
-        }
-        if (data is Map && data['items'] is List) {
-          return List<Map<String, dynamic>>.from(data['items']);
-        }
+        // Offload JSON parsing to a background isolate — the catalog can
+        // return hundreds of rows and the parse is pure CPU work with no
+        // I/O, so it's a textbook fit for `compute`.
+        return await compute(parseListingMaps, response.body);
       }
       return [];
     } catch (e) {
@@ -176,7 +184,6 @@ class ApiService {
     }
   }
 
-  /// Create a new marketplace listing, uploading images as multipart.
   Future<bool> createPost({
     required String title,
     required String description,
@@ -187,6 +194,7 @@ class ApiService {
     required List<File> images,
     String? storeId,
   }) async {
+    // ── Setup phase: async/await (each step depends on the previous) ──
     try {
       final token = await _storageService.getAccessToken();
 
@@ -211,7 +219,8 @@ class ApiService {
 
       for (final image in images) {
         final ext = image.path.split('.').last.toLowerCase();
-        final subtype = (ext == 'png' || ext == 'gif' || ext == 'webp') ? ext : 'jpeg';
+        final subtype =
+            (ext == 'png' || ext == 'gif' || ext == 'webp') ? ext : 'jpeg';
         request.files.add(
           await http.MultipartFile.fromPath(
             'images',
@@ -221,20 +230,30 @@ class ApiService {
         );
       }
 
-      final streamedResponse = await request.send().timeout(
-            ApiConfig.connectionTimeout,
-          );
-
-      if (streamedResponse.statusCode != 200 &&
-          streamedResponse.statusCode != 201) {
-        final body = await streamedResponse.stream.bytesToString();
-        debugPrint('[createPost] failed ${streamedResponse.statusCode}: $body');
-      }
-
-      return streamedResponse.statusCode == 200 ||
-          streamedResponse.statusCode == 201;
+      // ── Submission phase: handler-style composition ──
+      // `send()` returns Future<StreamedResponse>; `.then()` maps it into a
+      // bool, `.catchError()` converts network errors into a false result.
+      // The outer method still `await`s the composed Future to keep the
+      // call-site ergonomic.
+      return await request
+          .send()
+          .timeout(ApiConfig.connectionTimeout)
+          .then((streamed) async {
+            final ok = streamed.statusCode == 200 || streamed.statusCode == 201;
+            if (!ok) {
+              final body = await streamed.stream.bytesToString();
+              debugPrint(
+                  '[createPost] failed ${streamed.statusCode}: $body');
+            }
+            return ok;
+          })
+          .catchError((Object e) {
+            debugPrint('[createPost] network handler caught: $e');
+            return false;
+          });
     } catch (e) {
-      debugPrint('[createPost] exception: $e');
+      // Setup phase failure (token read, file read, etc.).
+      debugPrint('[createPost] setup caught: $e');
       return false;
     }
   }
@@ -348,17 +367,22 @@ class ApiService {
         break;
       }
     }
+    if (flushed > 0) {
+      QueueEventBus.instance.emit(ViewsFlushed(flushed));
+    }
     return flushed;
   }
 
-  /// Returns the stats (total views, etc.) for a product using a
-  /// **network-falling-back-to-cache** strategy. Sellers want current
-  /// numbers, so we try the network first; on failure we return the last
-  /// cached value alongside a timestamp the UI can display ("updated 3h
-  /// ago"). `data` is the raw API shape; `updatedAt` is `null` only when
-  /// the payload is fresh from the network.
   Future<({Map<String, dynamic> data, DateTime? updatedAt})?>
       getProductStats(String productId) async {
+    // ── 1. Check LRU RAM cache (O(1)) ──
+    final lruHit = productStatsCache.get(productId);
+    if (lruHit != null) {
+      debugPrint('[getProductStats] LRU RAM hit for $productId');
+      return (data: lruHit, updatedAt: null);
+    }
+
+    // ── 2. Try network ──
     try {
       final token = await _storageService.getAccessToken();
       final uri = Uri.parse(
@@ -372,6 +396,8 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
+        // Populate both LRU and Hive for future lookups.
+        productStatsCache.put(productId, data);
         await HiveService.putProductStats(productId, data);
         return (data: data, updatedAt: null);
       }
@@ -379,16 +405,39 @@ class ApiService {
       debugPrint('[getProductStats] falling back to cache: $e');
     }
 
+    // ── 3. Fall back to Hive disk cache ──
     final cached = HiveService.getProductStats(productId);
     if (cached == null) return null;
+    // Warm the LRU with the Hive result so subsequent reads are O(1).
+    productStatsCache.put(productId, cached.data);
     return (data: cached.data, updatedAt: cached.updatedAt);
   }
 
   /// Fetch the most recent listings for the Home screen.
+  /// Populates the [listingDetailCache] with each listing for O(1)
+  /// subsequent lookups by product ID.
   Future<List<Listing>> getRecentProducts() async {
     try {
-      final data = await getProducts();
-      return data.map((json) => Listing.fromJson(json)).toList();
+      final token = await _storageService.getAccessToken();
+      final uri =
+          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productsEndpoint}');
+      final response = await http.get(
+        uri,
+        headers: token != null
+            ? ApiConfig.authHeaders(token)
+            : ApiConfig.defaultHeaders,
+      ).timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode != 200) return [];
+      // Parse + construct `Listing` instances off the UI thread.
+      final listings = await compute(parseListings, response.body);
+      // Warm the LRU cache so tapping a product skips deserialization.
+      for (final listing in listings) {
+        if (listing.id != null) {
+          listingDetailCache.put(listing.id!, listing);
+        }
+      }
+      return listings;
     } catch (e) {
       return [];
     }
@@ -408,11 +457,8 @@ class ApiService {
       ).timeout(ApiConfig.connectionTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final list = data is List ? data : (data['items'] as List? ?? []);
-        return list
-            .map((json) => Listing.fromJson(json as Map<String, dynamic>))
-            .toList();
+        // Background-isolate parse — same reasoning as getRecentProducts.
+        return await compute(parseListings, response.body);
       }
       return [];
     } catch (e) {
@@ -473,6 +519,9 @@ class ApiService {
   }
 
   /// Uploads a new avatar image. Returns the new avatar URL on success.
+  ///
+  /// Same mixed `async/await + .then/.catchError` pattern as [createPost]:
+  /// async setup, composed submission.
   Future<String?> updateAvatar(File imageFile) async {
     try {
       final token = await _storageService.getAccessToken();
@@ -496,17 +545,24 @@ class ApiService {
         ),
       );
 
-      final streamed = await request.send().timeout(ApiConfig.connectionTimeout);
-      final responseBody = await streamed.stream.bytesToString();
-
-      if (streamed.statusCode == 200 || streamed.statusCode == 201) {
-        final data = jsonDecode(responseBody);
-        return data['avatar_url'] as String? ?? data['url'] as String?;
-      }
-      debugPrint('[updateAvatar] failed ${streamed.statusCode}: $responseBody');
-      return null;
+      return await request
+          .send()
+          .timeout(ApiConfig.connectionTimeout)
+          .then((streamed) async {
+            final body = await streamed.stream.bytesToString();
+            if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+              final data = jsonDecode(body);
+              return data['avatar_url'] as String? ?? data['url'] as String?;
+            }
+            debugPrint('[updateAvatar] failed ${streamed.statusCode}: $body');
+            return null;
+          })
+          .catchError((Object e) {
+            debugPrint('[updateAvatar] network handler caught: $e');
+            return null;
+          });
     } catch (e) {
-      debugPrint('[updateAvatar] exception: $e');
+      debugPrint('[updateAvatar] setup caught: $e');
       return null;
     }
   }
@@ -642,12 +698,8 @@ class ApiService {
           )
           .timeout(ApiConfig.connectionTimeout);
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is List) {
-          return data
-              .map((e) => Listing.fromJson(e as Map<String, dynamic>))
-              .toList();
-        }
+        // Background-isolate parse — same reasoning as getRecentProducts.
+        return await compute(parseListings, response.body);
       }
       return [];
     } catch (e) {

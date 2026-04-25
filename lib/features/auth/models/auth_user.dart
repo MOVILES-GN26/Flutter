@@ -1,4 +1,4 @@
-/// Modelo para el usuario autenticado
+/// Domain model representing the currently authenticated user.
 class AuthUser {
   final String id;
   final String email;

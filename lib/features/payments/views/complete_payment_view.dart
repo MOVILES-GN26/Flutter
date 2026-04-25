@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/cache/image_cache_manager.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/file_storage_service.dart';
@@ -211,6 +212,7 @@ class _CompletePaymentViewState extends State<CompletePaymentView> {
           borderRadius: BorderRadius.circular(10),
           child: item.imageUrls.isNotEmpty
               ? CachedNetworkImage(
+                  cacheManager: AndesHubImageCacheManager.instance,
                   imageUrl: item.imageUrls.first,
                   width: 72,
                   height: 72,

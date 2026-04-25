@@ -1,20 +1,20 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/cache/image_cache_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/local_db_service.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/widgets/offline_banner.dart';
 import '../../favorites/viewmodels/favorites_viewmodel.dart';
 import '../../payments/views/complete_payment_view.dart';
 import 'seller_profile_view.dart';
 import '../../profile/views/profile_view.dart';
 
-///
-/// Receives a [Listing] and displays its full information:
-/// hero image, title, price, seller info, description, and action buttons.
+
 class ProductDetailView extends StatefulWidget {
   final Listing item;
 
@@ -76,9 +76,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     }
   }
 
-  /// Human-friendly suffix shown next to the view count when the badge is
-  /// populated from cache. Returns an empty string for fresh values so the
-  /// UI is identical to online.
+
   String _viewsFreshnessSuffix() {
     final cached = _viewStatsCachedAt;
     if (cached == null) return '';
@@ -150,6 +148,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       ),
       body: Column(
         children: [
+          OfflineBanner(
+            message:
+                'Offline · cached product · checkout and live stats are unavailable',
+            lastUpdated: _viewStatsCachedAt,
+          ),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -164,6 +167,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         color: const Color(0xFFF5ECCF),
                         child: widget.item.imageUrls.isNotEmpty
                             ? CachedNetworkImage(
+                                cacheManager: AndesHubImageCacheManager.instance,
                                 imageUrl: widget.item.imageUrls.first,
                                 fit: BoxFit.cover,
                                 placeholder: (_, _) => const Center(
@@ -373,7 +377,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           radius: 30,
           backgroundColor: const Color(0xFFF5ECCF),
           backgroundImage: widget.item.sellerAvatarUrl != null
-              ? CachedNetworkImageProvider(widget.item.sellerAvatarUrl!)
+              ? CachedNetworkImageProvider(widget.item.sellerAvatarUrl!,
+                  cacheManager: AndesHubImageCacheManager.instance)
               : null,
           child: widget.item.sellerAvatarUrl == null
               ? const Icon(Icons.person, size: 30, color: Color(0xFF8B7E3B))

@@ -1,4 +1,4 @@
-/// Modelo para un item del home (Recently Added)
+/// Model for a single Home-screen item (Recently Added strip).
 class HomeItem {
   final String id;
   final String title;

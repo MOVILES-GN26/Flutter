@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../../core/cache/image_cache_manager.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/listing.dart';
+import '../../../core/widgets/offline_banner.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import '../../catalog/views/product_detail_view.dart';
 import '../viewmodels/profile_viewmodel.dart';
@@ -57,8 +59,15 @@ class _ProfileViewState extends State<ProfileView> {
           ),
         ],
       ),
-      body: Consumer<ProfileViewModel>(
-        builder: (context, vm, _) {
+      body: Column(
+        children: [
+          const OfflineBanner(
+            message:
+                'Offline · profile from cache · your listings may not be up to date',
+          ),
+          Expanded(
+            child: Consumer<ProfileViewModel>(
+              builder: (context, vm, _) {
           if (vm.status == ProfileStatus.loading) {
             return const Center(
               child: CircularProgressIndicator(color: _kOliveBorder),
@@ -174,6 +183,9 @@ class _ProfileViewState extends State<ProfileView> {
             ),
           );
         },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -374,6 +386,7 @@ class _ListingCard extends StatelessWidget {
                 color: const Color(0xFFF5ECCF),
                 child: item.imageUrls.isNotEmpty
                     ? CachedNetworkImage(
+                        cacheManager: AndesHubImageCacheManager.instance,
                         imageUrl: item.imageUrls.first,
                         fit: BoxFit.cover,
                         placeholder: (_, __) => const Center(

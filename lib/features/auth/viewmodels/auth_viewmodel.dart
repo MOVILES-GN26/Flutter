@@ -9,7 +9,7 @@ import '../models/auth_user.dart';
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated }
 
-/// ViewModel para manejo de autenticación
+/// ViewModel that owns authentication state (login, register, logout).
 class AuthViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
   final StorageService _storageService = StorageService();
@@ -106,7 +106,7 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Registrar nuevo usuario
+  /// Register a new user.
   Future<void> register({
     required String firstName,
     required String lastName,
@@ -156,7 +156,7 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Cerrar sesión. Wipes every on-disk trace of the current account so
+  /// Log out. Wipes every on-disk trace of the current account so
   /// the next login starts from a clean slate on shared devices:
   ///
   ///   * Secure storage: access + refresh tokens (keeps `last_login_email`
