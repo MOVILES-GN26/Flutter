@@ -708,6 +708,35 @@ class ApiService {
     }
   }
 
+  /// Fetch orders associated with a product (seller only).
+  /// Results are cached in Hive so the seller can see them offline.
+  Future<List<Map<String, dynamic>>?> getOrdersByProduct(
+      String productId) async {
+    // ── 1. Try network ──
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) throw Exception('No token');
+      final uri = Uri.parse(
+          '${ApiConfig.baseUrl}${ApiConfig.ordersEndpoint}?product_id=$productId');
+      final response = await http
+          .get(uri, headers: ApiConfig.authHeaders(token))
+          .timeout(ApiConfig.connectionTimeout);
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final list = (body is List ? body : [body])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        await HiveService.putProductOrders(productId, list);
+        return list;
+      }
+    } catch (e) {
+      debugPrint('[getOrdersByProduct] falling back to cache: $e');
+    }
+    // ── 2. Fall back to Hive ──
+    final cached = HiveService.getProductOrders(productId);
+    return cached?.orders;
+  }
+
   /// Fetch how many users have favorited a product. No auth required.
   Future<int?> getFavoritesCount(String productId) async {
     try {

@@ -31,6 +31,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   DateTime? _viewStatsCachedAt;
   int? _favoritesCount;
   bool _isOwner = false;
+  List<Map<String, dynamic>>? _orders;
 
   @override
   void initState() {
@@ -61,6 +62,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     } else {
       final stats = await _apiService.getProductStats(id);
       final favCount = await _apiService.getFavoritesCount(id);
+      final orders = await _apiService.getOrdersByProduct(id);
       if (mounted) {
         setState(() {
           if (stats != null) {
@@ -71,6 +73,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             _viewStatsCachedAt = stats.updatedAt;
           }
           _favoritesCount = favCount;
+          _orders = orders;
         });
       }
     }
@@ -280,6 +283,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           ),
                         ),
                         const SizedBox(height: 24),
+
+                        // ── Orders section (visible to owner only) ──
+                        if (_isOwner && _orders != null && _orders!.isNotEmpty)
+                          _buildOrdersSection(context),
                       ],
                     ),
                   ),
@@ -385,6 +392,124 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               : null,
         ),
       ],
+    );
+  }
+
+  // ── Orders section ──
+  Widget _buildOrdersSection(BuildContext context) {
+    final orders = _orders!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Orders (${orders.length})',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...orders.map((order) => _buildOrderCard(context, order)),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Widget _buildOrderCard(BuildContext context, Map<String, dynamic> order) {
+    final proofUrl = order['payment_proof_url'] as String?;
+    final delivery = order['delivery_option'] as String? ?? '—';
+    final total = order['total'];
+    final totalStr = total != null
+        ? '\$${(total is num ? total.toStringAsFixed(0) : total.toString())}'
+        : '—';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFE8E5D1)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (proofUrl != null && proofUrl.isNotEmpty)
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+              child: CachedNetworkImage(
+                cacheManager: AndesHubImageCacheManager.instance,
+                imageUrl: proofUrl,
+                width: double.infinity,
+                height: 200,
+                fit: BoxFit.cover,
+                placeholder: (_, _) => Container(
+                  height: 200,
+                  color: const Color(0xFFF5ECCF),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFFD4C84A)),
+                  ),
+                ),
+                errorWidget: (_, _, _) => Container(
+                  height: 200,
+                  color: const Color(0xFFF5ECCF),
+                  child: const Center(
+                    child: Icon(Icons.broken_image_outlined,
+                        size: 48, color: Color(0xFF8B7E3B)),
+                  ),
+                ),
+              ),
+            )
+          else
+            Container(
+              height: 120,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF5ECCF),
+                borderRadius:
+                    BorderRadius.vertical(top: Radius.circular(12)),
+              ),
+              child: const Center(
+                child: Icon(Icons.receipt_long_outlined,
+                    size: 48, color: Color(0xFF8B7E3B)),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.local_shipping_outlined,
+                              size: 15, color: Color(0xFF8B7E3B)),
+                          const SizedBox(width: 4),
+                          Text(
+                            delivery,
+                            style: const TextStyle(
+                                fontSize: 13, color: Color(0xFF96914F)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  totalStr,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF8B7E3B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
