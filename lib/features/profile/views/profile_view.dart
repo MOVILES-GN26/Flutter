@@ -204,8 +204,26 @@ class _UserHeader extends StatelessWidget {
                 width: 2,
               ),
             ),
-            child: const ClipOval(
-              child: Icon(Icons.person, size: 54, color: _kOlive),
+            child: ClipOval(
+              child: vm.avatarUrl != null && vm.avatarUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: vm.avatarUrl!,
+                      fit: BoxFit.cover,
+                      width: 90,
+                      height: 90,
+                      placeholder: (_, __) => const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _kOliveBorder,
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => const Icon(
+                        Icons.person,
+                        size: 54,
+                        color: _kOlive,
+                      ),
+                    )
+                  : const Icon(Icons.person, size: 54, color: _kOlive),
             ),
           ),
           const SizedBox(height: 14),

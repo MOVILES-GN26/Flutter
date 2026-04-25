@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../../../core/models/listing.dart';
+import '../../../core/services/api_config.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../auth/models/auth_user.dart';
@@ -58,6 +59,9 @@ class ProfileViewModel extends ChangeNotifier {
         _major = authUser.major;
         _firstName = authUser.firstName;
         _lastName = authUser.lastName;
+        if (authUser.avatarUrl != null && authUser.avatarUrl!.isNotEmpty) {
+          _avatarUrl = ApiConfig.fixImageUrl(authUser.avatarUrl);
+        }
       } else {
         await _loadUserFromToken();
       }
@@ -180,6 +184,10 @@ class ProfileViewModel extends ChangeNotifier {
       _major = data['major'] as String?;
       _studentId = data['student_id']?.toString();
       _phoneNumber = data['phone_number'] as String?;
+      final rawAvatar = data['avatar_url'] as String?;
+      if (rawAvatar != null && rawAvatar.isNotEmpty) {
+        _avatarUrl = ApiConfig.fixImageUrl(rawAvatar);
+      }
     } catch (e) {
       debugPrint('[ProfileViewModel] JWT decode error: $e');
     }

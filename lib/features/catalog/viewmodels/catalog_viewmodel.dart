@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../core/constants/post_categories.dart';
 
 export '../../../core/constants/post_conditions.dart';
@@ -117,6 +118,18 @@ class CatalogViewModel extends ChangeNotifier {
       _products = (results[0] as List<Map<String, dynamic>>)
           .map((json) => Listing.fromJson(json))
           .toList();
+
+      // Hide products that already have a payment_uploaded order from this buyer
+      try {
+        final pendingOrders =
+            await StorageService().getPendingPaymentOrders();
+        if (pendingOrders.isNotEmpty) {
+          final pendingIds = pendingOrders.keys.toSet();
+          _products = _products
+              .where((p) => p.id == null || !pendingIds.contains(p.id))
+              .toList();
+        }
+      } catch (_) {}
 
       if (_trendingCategories.isEmpty) {
         _trendingCategories = results[1] as List<String>;

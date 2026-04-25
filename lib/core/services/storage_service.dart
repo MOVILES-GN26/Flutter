@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Servicio para manejo de almacenamiento seguro
@@ -45,5 +46,40 @@ class StorageService {
     final accessToken = await getAccessToken();
     final refreshToken = await getRefreshToken();
     return accessToken != null || refreshToken != null;
+  }
+
+  // ── Pending payment orders ──
+  // Maps productId → orderId for orders whose status is 'payment_uploaded'.
+  static const String _pendingOrdersKey = 'pending_payment_orders';
+
+  Future<Map<String, String>> getPendingPaymentOrders() async {
+    try {
+      final data = await _storage.read(key: _pendingOrdersKey);
+      if (data == null || data.isEmpty) return {};
+      final map = jsonDecode(data) as Map<String, dynamic>;
+      return map.cast<String, String>();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> savePendingPaymentOrder(
+      String productId, String orderId) async {
+    final orders = await getPendingPaymentOrders();
+    orders[productId] = orderId;
+    await _storage.write(
+        key: _pendingOrdersKey, value: jsonEncode(orders));
+  }
+
+  Future<void> removePendingPaymentOrder(String productId) async {
+    final orders = await getPendingPaymentOrders();
+    orders.remove(productId);
+    await _storage.write(
+        key: _pendingOrdersKey, value: jsonEncode(orders));
+  }
+
+  Future<String?> getOrderIdForProduct(String productId) async {
+    final orders = await getPendingPaymentOrders();
+    return orders[productId];
   }
 }

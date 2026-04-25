@@ -6,6 +6,7 @@ import 'package:http_parser/http_parser.dart';
 import 'api_config.dart';
 import 'storage_service.dart';
 import '../models/listing.dart';
+import '../models/order.dart';
 
 /// Servicio central para peticiones HTTP al API
 class ApiService {
@@ -361,7 +362,7 @@ class ApiService {
       if (token == null) return false;
 
       final response = await http.delete(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productsEndpoint}/$id'),
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.postsEndpoint}/$id'),
         headers: ApiConfig.authHeaders(token),
       ).timeout(ApiConfig.connectionTimeout);
 
@@ -586,6 +587,100 @@ class ApiService {
     } catch (e) {
       debugPrint('[getFavorites] exception: $e');
       return [];
+    }
+  }
+
+  /// Fetch a single order by ID (buyer or seller may call this).
+  Future<Order?> getOrderById(String orderId) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return null;
+      final response = await http
+          .get(
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.orderEndpoint(orderId)}'),
+            headers: ApiConfig.authHeaders(token),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+      if (response.statusCode == 200) {
+        return Order.fromJson(
+            jsonDecode(response.body) as Map<String, dynamic>);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[getOrderById] exception: $e');
+      return null;
+    }
+  }
+
+  /// Fetch all orders for the authenticated user (as buyer or seller).
+  Future<List<Order>> getMyOrders() async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return [];
+      final response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordersEndpoint}'),
+            headers: ApiConfig.authHeaders(token),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return data
+              .map((e) => Order.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[getMyOrders] exception: $e');
+      return [];
+    }
+  }
+
+  /// Fetch orders for a specific product (seller perspective).
+  /// Calls GET /orders?product_id=:productId
+  Future<List<Order>> getOrdersForProduct(String productId) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return [];
+      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.ordersEndpoint}')
+          .replace(queryParameters: {'product_id': productId});
+      final response = await http
+          .get(uri, headers: ApiConfig.authHeaders(token))
+          .timeout(ApiConfig.connectionTimeout);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return data
+              .map((e) => Order.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[getOrdersForProduct] exception: $e');
+      return [];
+    }
+  }
+
+  /// Confirm a payment as the seller. Returns true on success.
+  Future<bool> confirmPayment(String orderId) async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return false;
+      final response = await http
+          .post(
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.orderConfirmEndpoint(orderId)}'),
+            headers: ApiConfig.authHeaders(token),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      debugPrint('[confirmPayment] exception: $e');
+      return false;
     }
   }
 

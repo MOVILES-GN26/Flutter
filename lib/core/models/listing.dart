@@ -1,3 +1,5 @@
+import 'package:marketplace_flutter/core/services/api_config.dart';
+
 /// Core domain model representing a marketplace listing.
 class Listing {
   final String? id;
@@ -42,11 +44,15 @@ class Listing {
       buildingLocation: json['building_location'] ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0,
       condition: json['condition'],
-      imageUrls: List<String>.from(json['image_urls'] ?? []),
+      imageUrls: List<String>.from(
+        (json['image_urls'] as List? ?? []).map((u) => ApiConfig.fixImageUrl(u?.toString())),
+      ),
       sellerId: seller?['id'] ?? json['seller_id'],
       sellerName: seller?['name'] ?? json['seller_name'],
       sellerMajor: seller?['major'] ?? json['seller_major'],
-      sellerAvatarUrl: seller?['avatar_url'] ?? json['seller_avatar_url'],
+      sellerAvatarUrl: ApiConfig.fixImageUrl(
+        (seller?['avatar_url'] ?? json['seller_avatar_url'])?.toString(),
+      ),
       sellerPhone: seller?['phone_number'] ?? json['seller_phone'],
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])

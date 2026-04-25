@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/listing.dart';
+import '../../../core/models/order.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../favorites/viewmodels/favorites_viewmodel.dart';
@@ -29,6 +30,13 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   int? _viewCount;
   int? _favoritesCount;
   bool _isOwner = false;
+  String? _currentUserId;
+
+  // Order state
+  Order? _order;
+  bool _orderLoaded = false;
+  bool _confirmingPayment = false;
+  bool _productHasActiveOrder = false;
 
   @override
   void initState() {
@@ -49,7 +57,15 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     final currentUserId = await _getCurrentUserId();
     final isOwner = currentUserId != null && currentUserId == widget.item.sellerId;
 
-    if (mounted) setState(() => _isOwner = isOwner);
+    if (mounted) {
+      setState(() {
+        _isOwner = isOwner;
+        _currentUserId = currentUserId;
+      });
+    }
+
+    // Load order for this product (buyer: from local storage; seller: from API)
+    await _loadOrder(id, isOwner: isOwner);
 
     if (!isOwner) {
       await _apiService.registerView(id);
@@ -66,6 +82,56 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           _favoritesCount = favCount;
         });
       }
+    }
+  }
+
+  /// Load the order associated with this product for the current user.
+  /// - Buyer: check local storage for a cached orderId, then fetch it.
+  /// - Seller: query orders for this product and find any active one.
+  Future<void> _loadOrder(String productId, {required bool isOwner}) async {
+    try {
+      Order? order;
+
+      if (isOwner) {
+        // Seller: query GET /orders?product_id=xxx and pick the first active order
+        final productOrders =
+            await _apiService.getOrdersForProduct(productId);
+        const activeStatuses = {
+          'payment_uploaded',
+          'confirmed',
+          'shipping',
+          'completed',
+        };
+        for (final o in productOrders) {
+          if (activeStatuses.contains(o.status)) {
+            order = o;
+            break;
+          }
+        }
+      } else {
+        // Buyer: check local storage for a pending order
+        final storedOrderId =
+            await _storageService.getOrderIdForProduct(productId);
+        if (storedOrderId != null) {
+          order = await _apiService.getOrderById(storedOrderId);
+          // If the order was confirmed/completed, clean up local storage
+          if (order != null &&
+              (order.isConfirmed ||
+                  order.status == 'completed' ||
+                  order.status == 'cancelled')) {
+            await _storageService.removePendingPaymentOrder(productId);
+          }
+        }
+
+        // Check if any non-cancelled order exists for this product
+        final productOrders = await _apiService.getOrdersForProduct(productId);
+        final hasActive = productOrders.any((o) => o.status != 'cancelled');
+        if (mounted) setState(() => _productHasActiveOrder = hasActive);
+      }
+
+      if (mounted) setState(() { _order = order; _orderLoaded = true; });
+    } catch (_) {
+      if (mounted) setState(() => _orderLoaded = true);
     }
   }
 
@@ -191,6 +257,18 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                       children: [
                         const SizedBox(height: 20),
 
+                        // ── Order status banner ──
+                        if (_order != null) ...[
+                          _buildOrderStatusBanner(),
+                          const SizedBox(height: 16),
+                        ],
+                        // ── Payment proof image (visible to seller) ──
+                        if (_isOwner &&
+                            _order != null &&
+                            (_order!.paymentProofUrl?.isNotEmpty ?? false)) ...[  
+                          _buildPaymentProofSection(),
+                          const SizedBox(height: 16),
+                        ],
                         // ── Title ──
                         Text(
                           widget.item.title,
@@ -364,6 +442,116 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     );
   }
 
+  // ── Payment proof image (shown to seller when buyer has uploaded proof) ──
+  Widget _buildPaymentProofSection() {
+    final proofUrl = _order!.paymentProofUrl!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Payment Proof',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: CachedNetworkImage(
+            imageUrl: proofUrl,
+            width: double.infinity,
+            fit: BoxFit.contain,
+            placeholder: (_, _) => Container(
+              height: 180,
+              color: const Color(0xFFF5ECCF),
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFFD4C84A)),
+              ),
+            ),
+            errorWidget: (_, _, _) => Container(
+              height: 180,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5ECCF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Center(
+                child: Icon(Icons.broken_image_outlined,
+                    size: 48, color: Color(0xFF8B7E3B)),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Order status banner (shown below image for buyer and seller) ──
+  Widget _buildOrderStatusBanner() {    final order = _order!;
+    Color bgColor;
+    Color textColor;
+    IconData icon;
+
+    switch (order.status) {
+      case 'payment_uploaded':
+        bgColor = const Color(0xFFFFF3CD);
+        textColor = const Color(0xFF856404);
+        icon = Icons.upload_file_outlined;
+        break;
+      case 'confirmed':
+        bgColor = const Color(0xFFD1E7DD);
+        textColor = const Color(0xFF0F5132);
+        icon = Icons.check_circle_outline;
+        break;
+      case 'shipping':
+        bgColor = const Color(0xFFCFE2FF);
+        textColor = const Color(0xFF084298);
+        icon = Icons.local_shipping_outlined;
+        break;
+      case 'completed':
+        bgColor = const Color(0xFFD1E7DD);
+        textColor = const Color(0xFF0F5132);
+        icon = Icons.done_all;
+        break;
+      case 'cancelled':
+        bgColor = const Color(0xFFF8D7DA);
+        textColor = const Color(0xFF842029);
+        icon = Icons.cancel_outlined;
+        break;
+      default:
+        bgColor = const Color(0xFFE2E3E5);
+        textColor = const Color(0xFF41464B);
+        icon = Icons.info_outline;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: textColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _isOwner
+                  ? 'Order status: ${order.statusLabel}'
+                  : 'Your order status: ${order.statusLabel}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Bottom actions: Buy Now + WhatsApp ──
   Widget _buildBottomActions(BuildContext context) {
     return Container(
@@ -379,68 +567,80 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         ],
       ),
       child: _isOwner
-          ? const Center(
-              child: Text(
-                'This is your listing',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black45,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            )
-          : Column(
+          ? _buildSellerBottomContent(context)
+          : _buildBuyerBottomContent(context),
+    );
+  }
+
+  // Seller-side bottom content
+  Widget _buildSellerBottomContent(BuildContext context) {
+    // If there's a payment_uploaded order, show confirm + buyer contact
+    if (_order != null && _order!.isPaymentUploaded) {
+      return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Buy Now → navigate to Complete Payment
+          // Confirm Payment button
           SizedBox(
             width: double.infinity,
             height: 48,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        CompletePaymentView(item: widget.item),
-                  ),
-                );
-              },
-              child: const Text('Buy Now'),
+            child: ElevatedButton.icon(
+              onPressed: _confirmingPayment
+                  ? null
+                  : () async {
+                      setState(() => _confirmingPayment = true);
+                      final success =
+                          await _apiService.confirmPayment(_order!.id);
+                      if (!mounted) return;
+                      setState(() => _confirmingPayment = false);
+                      if (success) {
+                        // Remove from local storage (buyer side)
+                        await _storageService.removePendingPaymentOrder(
+                            widget.item.id ?? '');
+                        await _loadOrder(widget.item.id ?? '',
+                            isOwner: true);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Payment confirmed successfully!'),
+                              backgroundColor: Color(0xFF198754),
+                            ),
+                          );
+                        }
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to confirm payment.'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              icon: _confirmingPayment
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check_circle_outline),
+              label: Text(
+                  _confirmingPayment ? 'Confirming…' : 'Confirm Payment'),
             ),
           ),
           const SizedBox(height: 10),
-          // Contact Seller via WhatsApp
+          // Contact Buyer via WhatsApp (in case seller needs to discuss/reject)
           SizedBox(
             width: double.infinity,
             height: 48,
-            child: OutlinedButton(
-              onPressed: () async {
-                final rawPhone = widget.item.sellerPhone;
-                if (rawPhone == null || rawPhone.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content:
-                            Text('Seller phone number not available.')),
-                  );
-                  return;
-                }
-                final phone = rawPhone.startsWith('57')
-                    ? rawPhone
-                    : '57$rawPhone';
-                final message = Uri.encodeComponent(
-                    'Hola, estoy interesado en comprar ${widget.item.title}');
-                final uri = Uri.parse('https://wa.me/$phone?text=$message');
-                if (!await launchUrl(uri,
-                    mode: LaunchMode.externalApplication)) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Could not open WhatsApp.')),
-                    );
-                  }
-                }
-              },
+            child: OutlinedButton.icon(
+              onPressed: () => _launchWhatsApp(
+                phone: _order!.buyerPhone,
+                name: _order!.buyerName,
+                isBuyer: true,
+              ),
+              icon: const Icon(Icons.chat_outlined),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.onSurface,
                 side: const BorderSide(color: Color(0xFFE8E5D1)),
@@ -448,15 +648,140 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   borderRadius: BorderRadius.circular(25),
                 ),
               ),
-              child: const Text(
-                'Contact Seller via WhatsApp',
-                style: TextStyle(fontWeight: FontWeight.w600),
+              label: Text(
+                'Contact ${_order!.buyerName} via WhatsApp',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ),
         ],
+      );
+    }
+
+    // No pending order — just show the "your listing" label
+    return const Center(
+      child: Text(
+        'This is your listing',
+        style: TextStyle(
+          fontSize: 14,
+          color: Colors.black45,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
+  }
+
+  // Buyer-side bottom content
+  Widget _buildBuyerBottomContent(BuildContext context) {
+    // If buyer already has an active order, show informational banner
+    if (_order != null &&
+        (_order!.isPaymentUploaded || _order!.isConfirmed)) {
+      final message = _order!.isConfirmed
+          ? 'Your payment has been confirmed by the seller.'
+          : 'Payment proof submitted — awaiting seller confirmation.';
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        alignment: Alignment.center,
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    // Normal buy flow
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Buy Now → navigate to Complete Payment (disabled if product has active order)
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: _productHasActiveOrder
+                ? null
+                : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            CompletePaymentView(item: widget.item),
+                      ),
+                    ).then((_) {
+                      // Reload order state when returning from payment screen
+                      if (mounted && widget.item.id != null) {
+                        _loadOrder(widget.item.id!, isOwner: false);
+                      }
+                    });
+                  },
+            child: Text(_productHasActiveOrder ? 'Not available' : 'Buy Now'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Contact Seller via WhatsApp
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton(
+            onPressed: () => _launchWhatsApp(
+              phone: widget.item.sellerPhone,
+              name: widget.item.title,
+              isBuyer: false,
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
+              side: const BorderSide(color: Color(0xFFE8E5D1)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+            ),
+            child: const Text(
+              'Contact Seller via WhatsApp',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _launchWhatsApp({
+    String? phone,
+    required String name,
+    required bool isBuyer,
+  }) async {
+    if (phone == null || phone.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isBuyer
+                ? 'Buyer phone number not available.'
+                : 'Seller phone number not available.'),
+          ),
+        );
+      }
+      return;
+    }
+    final normalizedPhone = phone.startsWith('57') ? phone : '57$phone';
+    final message = isBuyer
+        ? Uri.encodeComponent(
+            'Hola, soy el vendedor de "$name" en AndesHub. ¿Podemos coordinar el pago?')
+        : Uri.encodeComponent(
+            'Hola, estoy interesado en comprar $name');
+    final uri =
+        Uri.parse('https://wa.me/$normalizedPhone?text=$message');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp.')),
+        );
+      }
+    }
   }
 
   Widget _statBadge(IconData icon, String text,

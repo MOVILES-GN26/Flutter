@@ -1,3 +1,5 @@
+import 'package:marketplace_flutter/core/services/api_config.dart';
+
 /// Modelo para un item del home (Recently Added)
 class HomeItem {
   final String id;
@@ -19,7 +21,7 @@ class HomeItem {
       id: json['id']?.toString() ?? '',
       title: json['title'] ?? '',
       price: (json['price'] ?? 0).toDouble(),
-      imageUrl: json['image_url'] ?? json['imageUrl'] ?? '',
+      imageUrl: ApiConfig.fixImageUrl(json['image_url'] ?? json['imageUrl']),
       description: json['description'],
     );
   }

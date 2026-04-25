@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../core/models/listing.dart';
 
 enum HomeStatus { initial, loading, loaded, error }
@@ -29,6 +30,19 @@ class HomeViewModel extends ChangeNotifier {
       final trendingF = _apiService.getTrendingCategories();
       _recentlyAddedItems = await productsF;
       _trendingCategories = await trendingF;
+
+      // Hide products that already have a payment_uploaded order from the buyer
+      try {
+        final pendingOrders =
+            await StorageService().getPendingPaymentOrders();
+        if (pendingOrders.isNotEmpty) {
+          final pendingIds = pendingOrders.keys.toSet();
+          _recentlyAddedItems = _recentlyAddedItems
+              .where((p) => p.id == null || !pendingIds.contains(p.id))
+              .toList();
+        }
+      } catch (_) {}
+
       _status = HomeStatus.loaded;
     } catch (e) {
       _errorMessage = 'Could not load items. Please try again.';
