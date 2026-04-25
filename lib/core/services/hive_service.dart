@@ -23,6 +23,7 @@ class HiveService {
   static const String _pendingViewsBox = 'pending_views_box';
   static const String _pendingContactsBox = 'pending_contacts_box';
   static const String _productStatsBox = 'product_stats_box';
+  static const String _productOrdersBox = 'product_orders_box';
 
   // ── Keys inside single-slot boxes ─────────────────────────────────────
   static const String _kCurrentUser = 'current_user';
@@ -43,6 +44,7 @@ class HiveService {
       Hive.openBox(_pendingViewsBox),
       Hive.openBox(_pendingContactsBox),
       Hive.openBox(_productStatsBox),
+      Hive.openBox(_productOrdersBox),
     ]);
   }
 
@@ -264,6 +266,41 @@ class HiveService {
   static Future<void> clearProductStats() => _productStats.clear();
 
   // ══════════════════════════════════════════════════════════════════════
+  // Product orders cache (seller view of orders on their product)
+  // ══════════════════════════════════════════════════════════════════════
+
+  static Box get _productOrders => Hive.box(_productOrdersBox);
+
+  /// Returns cached orders list for [productId], or null if never fetched.
+  static ({List<Map<String, dynamic>> orders, DateTime updatedAt})?
+      getProductOrders(String productId) {
+    final raw = _productOrders.get(productId);
+    if (raw is! Map) return null;
+    final wrapper = Map<String, dynamic>.from(raw);
+    final iso = wrapper['_cached_at'] as String?;
+    final updatedAt = iso != null ? DateTime.tryParse(iso) : null;
+    if (updatedAt == null) return null;
+    final rawList = wrapper['orders'];
+    if (rawList is! List) return null;
+    final orders = rawList
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    return (orders: orders, updatedAt: updatedAt);
+  }
+
+  static Future<void> putProductOrders(
+    String productId,
+    List<Map<String, dynamic>> orders,
+  ) {
+    return _productOrders.put(productId, {
+      'orders': orders,
+      '_cached_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  static Future<void> clearProductOrders() => _productOrders.clear();
+
+  // ══════════════════════════════════════════════════════════════════════
   // Session cleanup
   // ══════════════════════════════════════════════════════════════════════
 
@@ -281,6 +318,7 @@ class HiveService {
       clearPendingViews(),
       clearPendingContacts(),
       clearProductStats(),
+      clearProductOrders(),
     ]);
   }
 
