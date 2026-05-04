@@ -65,6 +65,16 @@ class ProfileViewModel extends ChangeNotifier {
         }
       }
 
+      // Refresh user fields (avatar, phone, etc.) from the API so we always
+      // show the latest data, not just what was cached at login time.
+      final me = await _apiService.getMe();
+      if (me != null) {
+        final fresh = AuthUser.fromJson(me);
+        _applyAuthUser(fresh);
+        // Persist the enriched record so the next cold-start also has it.
+        await HiveService.putUser(fresh);
+      }
+
       if (_userId != null && _userId!.isNotEmpty) {
         _listings = await _apiService.getUserProducts(_userId!);
       }
@@ -86,6 +96,10 @@ class ProfileViewModel extends ChangeNotifier {
     _major = user.major;
     _firstName = user.firstName;
     _lastName = user.lastName;
+    // These fields may be absent from older cached AuthUser objects; they are
+    // overwritten by the fresh getMe() call in loadProfile when online.
+    if (user.avatarUrl != null) _avatarUrl = user.avatarUrl;
+    if (user.phoneNumber != null) _phoneNumber = user.phoneNumber;
   }
 
   /// Deletes a product by ID and removes it from the local list.
@@ -136,6 +150,8 @@ class ProfileViewModel extends ChangeNotifier {
             firstName: firstName,
             lastName: lastName,
             major: major,
+            avatarUrl: _avatarUrl,
+            phoneNumber: _phoneNumber,
           ));
         }
         notifyListeners();
