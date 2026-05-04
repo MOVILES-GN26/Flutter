@@ -298,6 +298,122 @@ class ApiService {
     }
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // Recommended-for-you
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /// Records that the authenticated user viewed a product in [category].
+  ///
+  /// Write-behind: if the POST fails the category is queued in Hive and
+  /// flushed by [flushPendingCategoryViews] as soon as connectivity is
+  /// restored. Anonymous sessions are ignored (no token → no-op).
+  Future<void> recordCategoryView(String category) async {
+    if (category.trim().isEmpty) return;
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return; // anonymous — no personalisation
+      final response = await http
+          .post(
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.viewedCategoryEndpoint}'),
+            headers: ApiConfig.authHeaders(token),
+            body: jsonEncode({'category': category}),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        await HiveService.enqueuePendingCategoryView(category);
+      }
+    } catch (e) {
+      debugPrint('[recordCategoryView] queueing offline: $e');
+      await HiveService.enqueuePendingCategoryView(category);
+    }
+  }
+
+  /// Flushes any category-view events that were queued while offline.
+  /// Returns the number of events successfully delivered.
+  Future<int> flushPendingCategoryViews() async {
+    final categories = HiveService.getPendingCategoryViewIds();
+    if (categories.isEmpty) return 0;
+
+    final token = await _storageService.getAccessToken();
+    if (token == null) return 0;
+    final uri = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.viewedCategoryEndpoint}');
+
+    int flushed = 0;
+    for (final category in categories) {
+      try {
+        final response = await http
+            .post(
+              uri,
+              headers: ApiConfig.authHeaders(token),
+              body: jsonEncode({'category': category}),
+            )
+            .timeout(ApiConfig.connectionTimeout);
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          await HiveService.removePendingCategoryView(category);
+          flushed++;
+        } else {
+          if (response.statusCode == 404) {
+            await HiveService.removePendingCategoryView(category);
+          }
+          break;
+        }
+      } catch (_) {
+        break;
+      }
+    }
+    return flushed;
+  }
+
+  /// Fetches personalised product recommendations for the authenticated user.
+  ///
+  /// Strategy: **cache-falling-on-network**.
+  ///   1. Always try the network first; if it succeeds, refresh the Hive
+  ///      cache and return `fromCache: false`.
+  ///   2. If the network fails (offline / timeout / 5xx), fall back to the
+  ///      Hive snapshot and return `fromCache: true`.
+  ///   3. If neither has data, return an empty list.
+  ///
+  /// Sold products are filtered out in both paths.
+  Future<({List<Listing> items, bool fromCache})> getRecommendedProducts() async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) {
+        // Unauthenticated — nothing to personalise.
+        return (items: const <Listing>[], fromCache: false);
+      }
+
+      final response = await http
+          .get(
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.recommendedProductsEndpoint}'),
+            headers: ApiConfig.authHeaders(token),
+          )
+          .timeout(ApiConfig.connectionTimeout);
+
+      if (response.statusCode == 200) {
+        final parsed = await parseListings(response.body);
+        final fresh = parsed.where((l) => !l.isSold).toList();
+        // Fire-and-forget cache write.
+        HiveService.putRecommendedListings(fresh);
+        return (items: fresh, fromCache: false);
+      }
+      throw Exception('HTTP ${response.statusCode}');
+    } catch (e) {
+      debugPrint('[getRecommendedProducts] network failed, trying cache: $e');
+      final cached = HiveService.getRecommendedListings()
+          .where((l) => !l.isSold)
+          .toList();
+      return (items: cached, fromCache: true);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // View interactions
+  // ════════════════════════════════════════════════════════════════════════════
+
   /// Registers a view interaction for a product.
   ///
   /// Write-behind: if the POST fails (no network, backend down), the view
@@ -528,13 +644,15 @@ class ApiService {
       if (response.statusCode != 200) return [];
       // Parse + construct `Listing` instances off the UI thread.
       final listings = await compute(parseListings, response.body);
+      // Exclude products that have already been sold.
+      final available = listings.where((l) => !l.isSold).toList();
       // Warm the LRU cache so tapping a product skips deserialization.
-      for (final listing in listings) {
+      for (final listing in available) {
         if (listing.id != null) {
           listingDetailCache.put(listing.id!, listing);
         }
       }
-      return listings;
+      return available;
     } catch (e) {
       return [];
     }
@@ -562,6 +680,28 @@ class ApiService {
       debugPrint('[getUserProducts] exception: $e');
       return [];
     }
+  }
+
+  /// Fetch a single product by ID. Returns null if not found or on error.
+  Future<Listing?> getProductById(String productId) async {
+    // Check LRU cache first.
+    final cached = listingDetailCache.get(productId);
+    try {
+      final token = await _storageService.getAccessToken();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.productsEndpoint}/$productId'),
+        headers: token != null
+            ? ApiConfig.authHeaders(token)
+            : ApiConfig.defaultHeaders,
+      ).timeout(ApiConfig.connectionTimeout);
+      if (response.statusCode == 200) {
+        final listing = Listing.fromJson(
+            jsonDecode(response.body) as Map<String, dynamic>);
+        listingDetailCache.put(productId, listing);
+        return listing;
+      }
+    } catch (_) {}
+    return cached;
   }
 
   /// Deletes a product by ID. Returns true on success.
@@ -796,7 +936,9 @@ class ApiService {
           .timeout(ApiConfig.connectionTimeout);
       if (response.statusCode == 200) {
         // Background-isolate parse — same reasoning as getRecentProducts.
-        return await compute(parseListings, response.body);
+        final listings = await compute(parseListings, response.body);
+        // Exclude favorites that have already been sold.
+        return listings.where((l) => !l.isSold).toList();
       }
       return [];
     } catch (e) {

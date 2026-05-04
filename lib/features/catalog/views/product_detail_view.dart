@@ -31,11 +31,13 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   DateTime? _viewStatsCachedAt;
   int? _favoritesCount;
   bool _isOwner = false;
+  bool _isSold = false;
   List<Map<String, dynamic>>? _orders;
 
   @override
   void initState() {
     super.initState();
+    _isSold = widget.item.isSold;
     _registerAndFetchViews();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final favVm = context.read<FavoritesViewModel>();
@@ -54,11 +56,24 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
     if (mounted) setState(() => _isOwner = isOwner);
 
+    // Always refresh is_sold from the API so the buy button reflects the
+    // current state, even if the listing was opened from a stale cache.
+    _apiService.getProductById(id).then((fresh) {
+      if (fresh != null && mounted) {
+        setState(() => _isSold = fresh.isSold);
+      }
+    });
+
     if (!isOwner) {
       // Mirror the view to the local DB so the "Recently Viewed" feed keeps
       // working offline, independently of whether the remote call succeeds.
       await LocalDbService.registerView(widget.item);
       await _apiService.registerView(id);
+      // Record which category was viewed so the backend can refine
+      // personalised recommendations. Write-behind — queued if offline.
+      if (widget.item.category.trim().isNotEmpty) {
+        _apiService.recordCategoryView(widget.item.category);
+      }
     } else {
       final stats = await _apiService.getProductStats(id);
       final favCount = await _apiService.getFavoritesCount(id);
@@ -417,7 +432,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   Widget _buildOrderCard(BuildContext context, Map<String, dynamic> order) {
-    final proofUrl = order['payment_proof_url'] as String?;
+    final rawProofUrl = order['payment_proof_url'] as String?;
+    final proofUrl = rawProofUrl?.replaceFirst(
+      RegExp(r'http://localhost:\d+'),
+      'https://andeshub.vrm.software',
+    );
     final delivery = order['delivery_option'] as String? ?? '—';
     final total = order['total'];
     final totalStr = total != null
@@ -541,6 +560,27 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           : Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (_isSold) ...
+            [
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: null,
+                  child: const Text('Buy Now'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'This product is being sold right now. If the sale is cancelled, you will be able to buy it later.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF96914F),
+                ),
+              ),
+            ]
+          else
           // Buy Now → navigate to Complete Payment
           SizedBox(
             width: double.infinity,

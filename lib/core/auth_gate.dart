@@ -73,7 +73,14 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        final destination = snapshot.data ?? AuthDestination.onboarding;
+        if (snapshot.hasError) {
+          // Fallback to login so the user always sees something.
+          // The error is intentionally swallowed here; auth errors are
+          // handled downstream by the login flow.
+          return const LoginView();
+        }
+
+        final destination = snapshot.data ?? AuthDestination.login;
         switch (destination) {
           case AuthDestination.home:
             return const MainScreen();

@@ -19,7 +19,7 @@ class LocalDbService {
 
   static Database? _db;
   static const String _dbName = 'andeshub.db';
-  static const int _dbVersion = 1;
+  static const int _dbVersion = 2;
 
   static const String tListings = 'listings';
   static const String tRecentViews = 'recent_views';
@@ -49,6 +49,12 @@ class LocalDbService {
       version: _dbVersion,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _onCreate,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute(
+              'ALTER TABLE $tListings ADD COLUMN is_sold INTEGER NOT NULL DEFAULT 0');
+        }
+      },
     );
     return _db!;
   }
@@ -69,6 +75,7 @@ class LocalDbService {
         seller_major TEXT,
         seller_avatar_url TEXT,
         seller_phone TEXT,
+        is_sold INTEGER NOT NULL DEFAULT 0,
         created_at TEXT,
         cached_at TEXT NOT NULL
       )
@@ -136,6 +143,9 @@ class LocalDbService {
     final db = await _database;
     final where = <String>[];
     final args = <Object?>[];
+
+    // Always exclude sold products from cache results.
+    where.add('is_sold = 0');
 
     if (search != null && search.isNotEmpty) {
       where.add('(title LIKE ? OR description LIKE ?)');
@@ -316,6 +326,7 @@ class LocalDbService {
       'seller_major': l.sellerMajor,
       'seller_avatar_url': l.sellerAvatarUrl,
       'seller_phone': l.sellerPhone,
+      'is_sold': l.isSold ? 1 : 0,
       'created_at': l.createdAt?.toIso8601String(),
       'cached_at': cachedAt,
     };
@@ -338,6 +349,7 @@ class LocalDbService {
       sellerMajor: r['seller_major'] as String?,
       sellerAvatarUrl: r['seller_avatar_url'] as String?,
       sellerPhone: r['seller_phone'] as String?,
+      isSold: (r['is_sold'] as int? ?? 0) == 1,
       createdAt: r['created_at'] != null
           ? DateTime.tryParse(r['created_at'] as String)
           : null,

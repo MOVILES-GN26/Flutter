@@ -10,6 +10,9 @@ import '../../../core/widgets/empty_state_view.dart';
 import '../../../core/widgets/offline_banner.dart';
 import '../viewmodels/home_viewmodel.dart';
 
+// Colour used for the "loading from cache" chips.
+const _kCacheBadgeColor = Color(0xFFF0A500);
+
 /// Home screen — implements Cache-then-Network (stale-while-revalidate).
 /// Paints from the Hive snapshot instantly, then auto-refreshes whenever
 /// connectivity comes back. Never shows a blank page — falls back to an
@@ -141,6 +144,7 @@ class _HomeViewState extends State<HomeView> {
             _buildSearchBar(),
             _buildCategories(viewModel),
             _buildRecentlyAdded(viewModel),
+            _buildRecommendedForYou(viewModel),
           ],
         ),
       ),
@@ -431,6 +435,88 @@ class _HomeViewState extends State<HomeView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Recommended for you ────────────────────────────────────────────────────
+
+  Widget _buildRecommendedForYou(HomeViewModel viewModel) {
+    final items = viewModel.recommendedItems;
+    final source = viewModel.recommendedSource;
+
+    // Determine offline/cache notice text.
+    String? notice;
+    if (source == RecommendedSource.cache) {
+      notice = '📦 Showing from cache';
+    } else if (source == RecommendedSource.localStorage) {
+      notice = '💾 Showing from local storage';
+    }
+
+    // While we have no data at all and recommendations are still loading
+    // (status != loaded), show a subtle shimmer placeholder row.
+    final isLoading =
+        viewModel.status == HomeStatus.loading && items.isEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Recommended for you',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              if (notice != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _kCacheBadgeColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: _kCacheBadgeColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    notice,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: _kCacheBadgeColor,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 240,
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                : items.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Browse some products and we\'ll personalise this for you!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.55)),
+                        ),
+                      )
+                    : ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: items.length,
+                        itemBuilder: (context, index) =>
+                            _buildRecentlyAddedItem(items[index]),
+                      ),
+          ),
+        ],
       ),
     );
   }

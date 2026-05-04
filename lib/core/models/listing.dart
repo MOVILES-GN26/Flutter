@@ -14,6 +14,8 @@ class Listing {
   final String? sellerAvatarUrl;
   final String? sellerPhone;
   final DateTime? createdAt;
+  /// True when the product has been sold. Hidden from Home and Favorites.
+  final bool isSold;
 
   Listing({
     this.id,
@@ -30,6 +32,7 @@ class Listing {
     this.sellerAvatarUrl,
     this.sellerPhone,
     this.createdAt,
+    this.isSold = false,
   });
 
   factory Listing.fromJson(Map<String, dynamic> json) {
@@ -42,15 +45,28 @@ class Listing {
       buildingLocation: json['building_location'] ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0,
       condition: json['condition'],
-      imageUrls: List<String>.from(json['image_urls'] ?? []),
+      imageUrls: (json['image_urls'] as List<dynamic>? ?? [])
+          .map((u) => _fixImageUrl(u as String))
+          .toList(),
       sellerId: seller?['id'] ?? json['seller_id'],
       sellerName: seller?['name'] ?? json['seller_name'],
       sellerMajor: seller?['major'] ?? json['seller_major'],
       sellerAvatarUrl: seller?['avatar_url'] ?? json['seller_avatar_url'],
       sellerPhone: seller?['phone_number'] ?? json['seller_phone'],
+      isSold: json['is_sold'] as bool? ?? false,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
           : null,
+    );
+  }
+
+  /// Replaces a localhost origin (any port) with the production server.
+  /// Needed because the backend incorrectly returns localhost URLs in some
+  /// environments. Safe to call on already-correct URLs.
+  static String _fixImageUrl(String url) {
+    return url.replaceFirst(
+      RegExp(r'http://localhost:\d+'),
+      'https://andeshub.vrm.software',
     );
   }
 

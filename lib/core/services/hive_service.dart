@@ -24,12 +24,15 @@ class HiveService {
   static const String _pendingContactsBox = 'pending_contacts_box';
   static const String _productStatsBox = 'product_stats_box';
   static const String _productOrdersBox = 'product_orders_box';
+  static const String _pendingCategoryViewsBox = 'pending_category_views_box';
 
   // ── Keys inside single-slot boxes ─────────────────────────────────────
   static const String _kCurrentUser = 'current_user';
   static const String _kTrendingCategories = 'trending_categories';
   static const String _kRecentListings = 'recent_listings';
   static const String _kRecentListingsUpdatedAt = 'recent_listings_updated_at';
+  static const String _kRecommendedListings = 'recommended_listings';
+  static const String _kRecommendedListingsUpdatedAt = 'recommended_listings_updated_at';
 
   static const int _recentListingsMax = 20;
 
@@ -45,6 +48,7 @@ class HiveService {
       Hive.openBox(_pendingContactsBox),
       Hive.openBox(_productStatsBox),
       Hive.openBox(_productOrdersBox),
+      Hive.openBox(_pendingCategoryViewsBox),
     ]);
   }
 
@@ -138,6 +142,30 @@ class HiveService {
     return DateTime.tryParse(iso);
   }
 
+  // ── Recommended listings ──────────────────────────────────────────────
+
+  static List<Listing> getRecommendedListings() {
+    final raw = _home.get(_kRecommendedListings);
+    if (raw is! List) return const [];
+    return raw.map((e) => Listing.fromJson(_asStringMap(e))).toList();
+  }
+
+  static Future<void> putRecommendedListings(List<Listing> listings) async {
+    final trimmed =
+        listings.take(_recentListingsMax).map(_listingToCacheable).toList();
+    await _home.put(_kRecommendedListings, trimmed);
+    await _home.put(
+      _kRecommendedListingsUpdatedAt,
+      DateTime.now().toIso8601String(),
+    );
+  }
+
+  static DateTime? get recommendedListingsUpdatedAt {
+    final iso = _home.get(_kRecommendedListingsUpdatedAt);
+    if (iso is! String) return null;
+    return DateTime.tryParse(iso);
+  }
+
   /// Wipes the full home snapshot (trending + recent + updated-at).
   static Future<void> clearHomeSnapshot() => _home.clear();
 
@@ -183,6 +211,33 @@ class HiveService {
       _pendingViews.delete(productId);
 
   static Future<void> clearPendingViews() => _pendingViews.clear();
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Pending category-view events (write-behind queue)
+  // ══════════════════════════════════════════════════════════════════════
+  //
+  // When the user opens a product detail the app records which category
+  // was viewed so the backend can build personalised recommendations.
+  // If the POST fails (offline / 5xx) the category is queued here and
+  // flushed by [ApiService.flushPendingCategoryViews] on reconnect.
+  // Keyed by category name so opening the same category N times offline
+  // still occupies a single slot (deduplicated).
+
+  static Box get _pendingCategoryViews =>
+      Hive.box(_pendingCategoryViewsBox);
+
+  static List<String> getPendingCategoryViewIds() =>
+      _pendingCategoryViews.keys.cast<String>().toList();
+
+  static Future<void> enqueuePendingCategoryView(String category) =>
+      _pendingCategoryViews.put(
+          category, DateTime.now().toIso8601String());
+
+  static Future<void> removePendingCategoryView(String category) =>
+      _pendingCategoryViews.delete(category);
+
+  static Future<void> clearPendingCategoryViews() =>
+      _pendingCategoryViews.clear();
 
   // ══════════════════════════════════════════════════════════════════════
   // Pending buyer→seller contact events (write-behind queue)
@@ -319,6 +374,7 @@ class HiveService {
       clearPendingContacts(),
       clearProductStats(),
       clearProductOrders(),
+      clearPendingCategoryViews(),
     ]);
   }
 
@@ -347,6 +403,7 @@ class HiveService {
         'price': l.price,
         if (l.condition != null) 'condition': l.condition,
         'image_urls': l.imageUrls,
+        'is_sold': l.isSold,
         if (l.sellerId != null) 'seller_id': l.sellerId,
         if (l.sellerName != null) 'seller_name': l.sellerName,
         if (l.sellerMajor != null) 'seller_major': l.sellerMajor,

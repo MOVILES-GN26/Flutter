@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:sqflite_common/sqflite.dart' show databaseFactory;
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'core/auth_gate.dart';
@@ -25,6 +28,10 @@ Future<void> main() async {
   PaintingBinding.instance.imageCache
     ..maximumSize = 200
     ..maximumSizeBytes = 150 * (1 << 20); // 150 MB
+
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWebNoWebWorker;
+  }
 
   await Future.wait([
     PreferencesService.init(),
@@ -238,6 +245,9 @@ class _NetworkSyncListenerState extends State<_NetworkSyncListener> {
     final api = ApiService();
     try {
       await api.flushPendingViews();
+    } catch (_) {/* next reconnect will retry */}
+    try {
+      await api.flushPendingCategoryViews();
     } catch (_) {/* next reconnect will retry */}
     try {
       await api.flushPendingContacts();

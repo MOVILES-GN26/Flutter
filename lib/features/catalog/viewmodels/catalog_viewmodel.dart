@@ -170,6 +170,7 @@ class CatalogViewModel extends ChangeNotifier {
 
       _products = (results[0] as List<Map<String, dynamic>>)
           .map((json) => Listing.fromJson(json))
+          .where((l) => !l.isSold)
           .toList();
 
       if (_trendingCategories.isEmpty) {

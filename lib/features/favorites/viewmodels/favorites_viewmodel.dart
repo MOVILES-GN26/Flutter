@@ -19,7 +19,7 @@ class FavoritesViewModel extends ChangeNotifier {
 
   FavoritesViewModel() {
     // Seed from cache so `isFavorited` works before the first API call.
-    _favorites = HiveService.getFavorites();
+    _favorites = HiveService.getFavorites().where((l) => !l.isSold).toList();
     if (_favorites.isNotEmpty) {
       _status = FavoritesStatus.loaded;
     }
