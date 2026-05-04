@@ -90,8 +90,18 @@ class HomeViewModel extends ChangeNotifier {
       final trending = await trendingF;
       final recommended = await recommendedF;
 
-      _recentlyAddedItems = items;
-      _trendingCategories = trending;
+      // Only replace cached data when the API actually returned something.
+      // getRecentProducts/getTrendingCategories return [] on any network
+      // failure instead of throwing, so an empty response must never wipe
+      // a valid snapshot that was seeded from Hive on startup.
+      if (items.isNotEmpty) {
+        _recentlyAddedItems = items;
+        HiveService.putRecentListings(items);
+      }
+      if (trending.isNotEmpty) {
+        _trendingCategories = trending;
+        HiveService.putTrendingCategories(trending);
+      }
       _recommendedItems = recommended.items;
       _recommendedSource = recommended.items.isEmpty
           ? RecommendedSource.none
@@ -99,10 +109,6 @@ class HomeViewModel extends ChangeNotifier {
               ? RecommendedSource.cache
               : RecommendedSource.network;
       _status = HomeStatus.loaded;
-
-      // Fire-and-forget cache writes — the UI already has the data.
-      HiveService.putRecentListings(items);
-      HiveService.putTrendingCategories(trending);
     } catch (_) {
       if (_recentlyAddedItems.isEmpty && _trendingCategories.isEmpty) {
         _errorMessage = 'Could not load items. Please try again.';

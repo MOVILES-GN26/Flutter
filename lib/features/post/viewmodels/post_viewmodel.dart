@@ -241,10 +241,16 @@ class PostViewModel extends ChangeNotifier {
           // deleting files individually.
           await FileStorageService.deletePendingPostImages(post.id);
           flushed++;
+        } else {
+          // Server responded but rejected the post (non-2xx). This is not a
+          // network problem — retrying the same payload will keep failing, so
+          // drop the entry to prevent the queue from growing unbounded.
+          await HiveService.removePendingPost(post.id);
+          await FileStorageService.deletePendingPostImages(post.id);
+          debugPrint('[flushPendingPosts] server rejected "${post.title}", dropping from queue');
         }
       } catch (_) {
-        // Still offline — keep it queued and bail out; trying further
-        // entries would just fail the same way.
+        // Network still down — keep remaining entries and bail out.
         break;
       }
     }

@@ -215,6 +215,15 @@ class _NetworkSyncListenerState extends State<_NetworkSyncListener> {
         duration: const Duration(seconds: 3),
       ),
     );
+
+    // When posts are flushed the server now has new listings. Home and Catalog
+    // were already reloaded at the moment connectivity was restored — before
+    // the upload finished — so they don't yet show the new post. Trigger a
+    // second refresh here so it appears immediately without a manual pull.
+    if (event is PostsFlushed && mounted) {
+      context.read<HomeViewModel>().loadHomeData();
+      context.read<CatalogViewModel>().loadProducts();
+    }
   }
 
   ScaffoldMessengerState? get _rootMessenger {

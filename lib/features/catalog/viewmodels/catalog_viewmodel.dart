@@ -41,6 +41,11 @@ class CatalogViewModel extends ChangeNotifier {
 
   final LruCache<String, bool> _trendingLookup = LruCache(maxSize: 20);
 
+  // ── Load-token: incremented on every loadProducts() call so that results
+  // from a superseded load (e.g. rapid filter taps) are discarded before
+  // they can overwrite the state that belongs to the latest request. ──
+  int _loadToken = 0;
+
   // ── Location state ──
   String? _nearestBuilding;
   List<String> _nearbyBuildings = [];
@@ -138,6 +143,10 @@ class CatalogViewModel extends ChangeNotifier {
   }
 
   Future<void> loadProducts() async {
+    // Stamp this invocation. Any load that started earlier and resolves
+    // after this one is considered stale and must not touch shared state.
+    final myToken = ++_loadToken;
+
     // ── 1. Cached results first ──
     final cached = await LocalDbService.queryListings(
       search: _searchQuery.isNotEmpty ? _searchQuery : null,
@@ -145,6 +154,8 @@ class CatalogViewModel extends ChangeNotifier {
       condition: _selectedCondition,
       priceSort: _selectedPriceSort,
     );
+    if (myToken != _loadToken) return; // superseded — discard
+
     if (cached.isNotEmpty) {
       _products = cached;
       _partitionNearbyProducts();
@@ -157,6 +168,9 @@ class CatalogViewModel extends ChangeNotifier {
     }
 
     // ── 2. Refresh from API ──
+    // Capture whether we need trending NOW (before the await) so the
+    // results[1] index is consistent when we read the response.
+    final fetchTrending = _trendingCategories.isEmpty;
     try {
       final results = await Future.wait([
         _apiService.getProducts(
@@ -165,24 +179,40 @@ class CatalogViewModel extends ChangeNotifier {
           condition: _selectedCondition,
           priceSort: _selectedPriceSort,
         ),
-        if (_trendingCategories.isEmpty) _apiService.getTrendingCategories(),
+        if (fetchTrending) _apiService.getTrendingCategories(),
       ]);
+      if (myToken != _loadToken) return; // superseded — discard
 
-      _products = (results[0] as List<Map<String, dynamic>>)
+      final fresh = (results[0] as List<Map<String, dynamic>>)
           .map((json) => Listing.fromJson(json))
           .where((l) => !l.isSold)
           .toList();
 
-      if (_trendingCategories.isEmpty) {
-        _trendingCategories = results[1] as List<String>;
+      if (fetchTrending && results.length > 1) {
+        final freshTrending = results[1] as List<String>;
+        if (freshTrending.isNotEmpty) {
+          _trendingCategories = freshTrending;
+          _trendingLookup.clear();
+        }
       }
 
-      _partitionNearbyProducts();
-      _status = CatalogStatus.loaded;
-
-      // Fire-and-forget: UI already has the data in memory.
-      LocalDbService.upsertListings(_products);
+      if (fresh.isNotEmpty) {
+        // API returned real data — replace cache.
+        _products = fresh;
+        _partitionNearbyProducts();
+        _status = CatalogStatus.loaded;
+        LocalDbService.upsertListings(fresh); // fire-and-forget
+      } else if (_products.isEmpty) {
+        // API returned nothing AND no SQLite cache: show the error/offline
+        // empty-state so the user gets a retry button instead of a blank "No
+        // items found" message with no context.
+        _errorMessage =
+            'Unable to load products. Please check your connection and try again.';
+        _status = CatalogStatus.error;
+      }
+      // else: API returned nothing but cache is already showing — keep it.
     } catch (_) {
+      if (myToken != _loadToken) return;
       if (_products.isEmpty) {
         _errorMessage =
             'Unable to load products. Please check your connection and try again.';
@@ -270,6 +300,10 @@ class CatalogViewModel extends ChangeNotifier {
   }
 
   void resetForLogout() {
+    // Invalidate any loadProducts() call currently in-flight. Without this,
+    // a slow network response arriving after logout would overwrite the clean
+    // initial state with the previous user's data.
+    _loadToken++;
     _status = CatalogStatus.initial;
     _errorMessage = null;
     _products = const [];

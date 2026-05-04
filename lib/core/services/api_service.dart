@@ -194,68 +194,56 @@ class ApiService {
     required List<File> images,
     String? storeId,
   }) async {
-    // ── Setup phase: async/await (each step depends on the previous) ──
-    try {
-      final token = await _storageService.getAccessToken();
+    final token = await _storageService.getAccessToken();
 
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.postsEndpoint}'),
-      );
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.postsEndpoint}'),
+    );
 
-      if (token != null) {
-        request.headers['Authorization'] = 'Bearer $token';
-      }
-
-      request.fields['title'] = title;
-      request.fields['description'] = description;
-      request.fields['category'] = category;
-      request.fields['building_location'] = buildingLocation;
-      request.fields['price'] = price.toString();
-      request.fields['condition'] = condition;
-      if (storeId != null) {
-        request.fields['store_id'] = storeId;
-      }
-
-      for (final image in images) {
-        final ext = image.path.split('.').last.toLowerCase();
-        final subtype =
-            (ext == 'png' || ext == 'gif' || ext == 'webp') ? ext : 'jpeg';
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'images',
-            image.path,
-            contentType: MediaType('image', subtype),
-          ),
-        );
-      }
-
-      // ── Submission phase: handler-style composition ──
-      // `send()` returns Future<StreamedResponse>; `.then()` maps it into a
-      // bool, `.catchError()` converts network errors into a false result.
-      // The outer method still `await`s the composed Future to keep the
-      // call-site ergonomic.
-      return await request
-          .send()
-          .timeout(ApiConfig.connectionTimeout)
-          .then((streamed) async {
-            final ok = streamed.statusCode == 200 || streamed.statusCode == 201;
-            if (!ok) {
-              final body = await streamed.stream.bytesToString();
-              debugPrint(
-                  '[createPost] failed ${streamed.statusCode}: $body');
-            }
-            return ok;
-          })
-          .catchError((Object e) {
-            debugPrint('[createPost] network handler caught: $e');
-            return false;
-          });
-    } catch (e) {
-      // Setup phase failure (token read, file read, etc.).
-      debugPrint('[createPost] setup caught: $e');
-      return false;
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
     }
+
+    request.fields['title'] = title;
+    request.fields['description'] = description;
+    request.fields['category'] = category;
+    request.fields['building_location'] = buildingLocation;
+    request.fields['price'] = price.toString();
+    request.fields['condition'] = condition;
+    if (storeId != null) {
+      request.fields['store_id'] = storeId;
+    }
+
+    for (final image in images) {
+      final ext = image.path.split('.').last.toLowerCase();
+      final subtype =
+          (ext == 'png' || ext == 'gif' || ext == 'webp') ? ext : 'jpeg';
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'images',
+          image.path,
+          contentType: MediaType('image', subtype),
+        ),
+      );
+    }
+
+    // ── Submission phase: handler-style composition ──
+    // Network errors (SocketException, TimeoutException, etc.) are NOT caught
+    // here — they propagate to PostViewModel.createPost(), which queues the
+    // draft in Hive for offline retry. Only non-2xx HTTP responses are
+    // signalled as `false` (server rejection — do not queue those).
+    return await request
+        .send()
+        .timeout(ApiConfig.connectionTimeout)
+        .then((streamed) async {
+          final ok = streamed.statusCode == 200 || streamed.statusCode == 201;
+          if (!ok) {
+            final body = await streamed.stream.bytesToString();
+            debugPrint('[createPost] failed ${streamed.statusCode}: $body');
+          }
+          return ok;
+        });
   }
 
   /// Fetch the top trending categories of the last 7 days.
@@ -394,7 +382,7 @@ class ApiService {
           .timeout(ApiConfig.connectionTimeout);
 
       if (response.statusCode == 200) {
-        final parsed = await parseListings(response.body);
+        final parsed = parseListings(response.body);
         final fresh = parsed.where((l) => !l.isSold).toList();
         // Fire-and-forget cache write.
         HiveService.putRecommendedListings(fresh);
