@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/preferences_service.dart';
 import '../../core/services/storage_service.dart';
@@ -33,6 +34,23 @@ class AuthGate extends StatelessWidget {
 
     final accessToken = await storageService.getAccessToken();
     final refreshToken = await storageService.getRefreshToken();
+
+    // ── Offline bypass ────────────────────────────────────────────────────
+    // If the device has no connectivity, skip all network calls.
+    // • Tokens present  → user was previously logged in; go to home so all
+    //   offline-capable screens (catalog, home, profile) can render from cache.
+    // • No tokens       → user has never logged in on this device; send them
+    //   to onboarding / login as usual (nothing to show offline anyway).
+    final connectivity = await Connectivity().checkConnectivity();
+    final isOffline = connectivity.every((r) => r == ConnectivityResult.none);
+    if (isOffline) {
+      if (accessToken != null || refreshToken != null) {
+        return AuthDestination.home;
+      }
+      return prefs.onboardingCompleted
+          ? AuthDestination.login
+          : AuthDestination.onboarding;
+    }
 
     // No tokens → decide between onboarding and login based on whether the
     // user has ever completed the onboarding flow before.

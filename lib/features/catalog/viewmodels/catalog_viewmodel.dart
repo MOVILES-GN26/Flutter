@@ -162,6 +162,12 @@ class CatalogViewModel extends ChangeNotifier {
       _status = CatalogStatus.loaded;
       notifyListeners();
     } else {
+      // No cache hit — clear any stale results from a previous filter so
+      // the UI doesn't keep showing products that don't match.
+      if (_hasActiveFilters()) {
+        _products = [];
+        _nearbyProducts = [];
+      }
       _status = CatalogStatus.loading;
       _errorMessage = null;
       notifyListeners();
@@ -202,6 +208,12 @@ class CatalogViewModel extends ChangeNotifier {
         _partitionNearbyProducts();
         _status = CatalogStatus.loaded;
         LocalDbService.upsertListings(fresh); // fire-and-forget
+      } else if (_hasActiveFilters()) {
+        // API returned nothing for this filter combination — clear the list
+        // so the view shows the empty state instead of stale results.
+        _products = [];
+        _nearbyProducts = [];
+        _status = CatalogStatus.loaded;
       } else if (_products.isEmpty) {
         // API returned nothing AND no SQLite cache: show the error/offline
         // empty-state so the user gets a retry button instead of a blank "No
@@ -240,6 +252,12 @@ class CatalogViewModel extends ChangeNotifier {
       LocalDbService.getRecentSearches(limit: limit);
 
   /// Toggle a category filter. Pass null to clear.
+  bool _hasActiveFilters() =>
+      _selectedCategory != null ||
+      _selectedCondition != null ||
+      _selectedPriceSort != null ||
+      _searchQuery.isNotEmpty;
+
   void setCategory(String? category) {
     _selectedCategory = (_selectedCategory == category) ? null : category;
     _persistFilters();

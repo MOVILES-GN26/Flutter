@@ -465,9 +465,12 @@ class _HomeViewState extends State<HomeView> {
         children: [
           Row(
             children: [
-              const Text(
-                'Recommended for you',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              const Flexible(
+                child: Text(
+                  'Recommended for you',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               if (notice != null) ...[
                 const SizedBox(width: 8),
