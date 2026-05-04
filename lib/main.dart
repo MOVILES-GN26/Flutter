@@ -204,6 +204,9 @@ class _NetworkSyncListenerState extends State<_NetworkSyncListener> {
       ViewsFlushed(:final count) => count == 1
           ? '1 pending view was synced.'
           : '$count pending views were synced.',
+      FavoritesFlushed(:final count) => count == 1
+          ? '1 favorite was synced.'
+          : '$count favorites were synced.',
       PostQueued() =>
         'No connection — saved locally. We\'ll publish it when you\'re back online.',
     };
@@ -252,6 +255,9 @@ class _NetworkSyncListenerState extends State<_NetworkSyncListener> {
   /// is independently safe to retry, so we don't bother coordinating them.
   Future<void> _flushAllQueues() async {
     final api = ApiService();
+    try {
+      await api.flushPendingFavorites();
+    } catch (_) {/* next reconnect will retry */}
     try {
       await api.flushPendingViews();
     } catch (_) {/* next reconnect will retry */}

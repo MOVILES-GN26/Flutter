@@ -63,22 +63,33 @@ class FavoritesViewModel extends ChangeNotifier {
   }
 
   /// Optimistically adds [item] to the cache + local list, then calls the API.
-  /// Rolls back both layers if the API call fails.
+  /// If the network call fails (offline), queues the action for later sync
+  /// instead of rolling back the optimistic update.
   Future<bool> addFavorite(FavoriteItem item) async {
     if (item.id == null) return false;
     if (_favorites.any((f) => f.id == item.id)) return true;
 
+    // Optimistic update — show the heart immediately.
     _favorites = [..._favorites, item];
     await HiveService.putFavorite(item);
+    // Remove any previous 'remove' intent so the latest action wins.
+    await HiveService.removePendingFavorite(item.id!);
     notifyListeners();
 
-    final success = await _apiService.addFavorite(item.id!);
-    if (!success) {
-      _favorites = _favorites.where((f) => f.id != item.id).toList();
-      await HiveService.removeFavorite(item.id!);
-      notifyListeners();
+    try {
+      final success = await _apiService.addFavorite(item.id!);
+      if (!success) {
+        // Server rejected — roll back.
+        _favorites = _favorites.where((f) => f.id != item.id).toList();
+        await HiveService.removeFavorite(item.id!);
+        notifyListeners();
+      }
+      return success;
+    } catch (_) {
+      // Network unavailable — keep the optimistic state and queue for sync.
+      await HiveService.enqueuePendingFavorite(item.id!, 'add');
+      return true; // treat as success from the user's perspective
     }
-    return success;
   }
 
   /// Drop every cached favorite from memory. Disk cleanup is the auth
@@ -91,24 +102,32 @@ class FavoritesViewModel extends ChangeNotifier {
   }
 
   /// Optimistically removes [productId] from the cache + local list, then
-  /// calls the API. Rolls back both layers if the API call fails.
+  /// calls the API. If the network call fails (offline), queues the action
+  /// for later sync instead of rolling back.
   Future<bool> removeFavorite(String productId) async {
     final snapshot = List<FavoriteItem>.from(_favorites);
-    final removed = snapshot.firstWhere(
-      (f) => f.id == productId,
-      orElse: () => snapshot.first,
-    );
 
+    // Optimistic update — remove the heart immediately.
     _favorites = _favorites.where((f) => f.id != productId).toList();
     await HiveService.removeFavorite(productId);
+    // Remove any previous 'add' intent so the latest action wins.
+    await HiveService.removePendingFavorite(productId);
     notifyListeners();
 
-    final success = await _apiService.removeFavorite(productId);
-    if (!success) {
-      _favorites = snapshot;
-      await HiveService.putFavorite(removed);
-      notifyListeners();
+    try {
+      final success = await _apiService.removeFavorite(productId);
+      if (!success) {
+        // Server rejected — roll back.
+        _favorites = snapshot;
+        final removed = snapshot.firstWhere((f) => f.id == productId);
+        await HiveService.putFavorite(removed);
+        notifyListeners();
+      }
+      return success;
+    } catch (_) {
+      // Network unavailable — keep the optimistic state and queue for sync.
+      await HiveService.enqueuePendingFavorite(productId, 'remove');
+      return true; // treat as success from the user's perspective
     }
-    return success;
   }
 }

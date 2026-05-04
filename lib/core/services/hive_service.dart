@@ -25,6 +25,7 @@ class HiveService {
   static const String _productStatsBox = 'product_stats_box';
   static const String _productOrdersBox = 'product_orders_box';
   static const String _pendingCategoryViewsBox = 'pending_category_views_box';
+  static const String _pendingFavoritesBox = 'pending_favorites_box';
 
   // ── Keys inside single-slot boxes ─────────────────────────────────────
   static const String _kCurrentUser = 'current_user';
@@ -49,6 +50,7 @@ class HiveService {
       Hive.openBox(_productStatsBox),
       Hive.openBox(_productOrdersBox),
       Hive.openBox(_pendingCategoryViewsBox),
+      Hive.openBox(_pendingFavoritesBox),
     ]);
   }
 
@@ -358,8 +360,33 @@ class HiveService {
   // ══════════════════════════════════════════════════════════════════════
   // Session cleanup
   // ══════════════════════════════════════════════════════════════════════
+  // Pending favorite mutations (write-behind queue)
+  // ══════════════════════════════════════════════════════════════════════
+  //
+  // When addFavorite / removeFavorite fail because the device is offline,
+  // the action is stored here (keyed by productId → 'add' | 'remove') and
+  // replayed by [ApiService.flushPendingFavorites] on reconnect.
+  // The latest intent wins: queuing 'add' after a queued 'remove' replaces
+  // the previous entry, which is the correct merge semantics.
 
-  /// Wipe every Hive box that belongs to the current user's session. Call
+  static Box get _pendingFavs => Hive.box(_pendingFavoritesBox);
+
+  /// Map of productId → action ('add' or 'remove').
+  static Map<String, String> getPendingFavorites() =>
+      Map<String, String>.from(_pendingFavs.toMap().map(
+            (k, v) => MapEntry(k.toString(), v.toString()),
+          ));
+
+  static Future<void> enqueuePendingFavorite(
+          String productId, String action) =>
+      _pendingFavs.put(productId, action);
+
+  static Future<void> removePendingFavorite(String productId) =>
+      _pendingFavs.delete(productId);
+
+  static Future<void> clearPendingFavorites() => _pendingFavs.clear();
+
+  // ══════════════════════════════════════════════════════════════════════ Call
   /// from the logout path to stop the next account from seeing leftover
   /// favorites, a stale home snapshot, cached user info, or — critically —
   /// a pending post / view event that would otherwise be re-uploaded under
@@ -375,6 +402,7 @@ class HiveService {
       clearProductStats(),
       clearProductOrders(),
       clearPendingCategoryViews(),
+      clearPendingFavorites(),
     ]);
   }
 

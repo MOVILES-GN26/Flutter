@@ -890,6 +890,37 @@ class ApiService {
       return null;
     }
   }
+
+  /// Replay any pending favorite add/remove actions queued while offline.
+  /// Returns the number of actions successfully synced.
+  Future<int> flushPendingFavorites() async {
+    final pending = HiveService.getPendingFavorites();
+    if (pending.isEmpty) return 0;
+
+    int flushed = 0;
+    for (final entry in pending.entries) {
+      final productId = entry.key;
+      final action = entry.value; // 'add' or 'remove'
+      try {
+        final ok = action == 'add'
+            ? await addFavorite(productId)
+            : await removeFavorite(productId);
+        if (ok) {
+          await HiveService.removePendingFavorite(productId);
+          flushed++;
+        } else {
+          break; // unexpected server error — keep for next retry
+        }
+      } catch (_) {
+        break; // still offline — stop and keep the rest queued
+      }
+    }
+    if (flushed > 0) {
+      QueueEventBus.instance.emit(FavoritesFlushed(flushed));
+    }
+    return flushed;
+  }
+
   /// Add a product to the authenticated user's favorites. Returns true on success.
   Future<bool> addFavorite(String productId) async {
     try {

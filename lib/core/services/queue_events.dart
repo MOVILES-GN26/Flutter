@@ -28,6 +28,12 @@ class ViewsFlushed extends QueueEvent {
   const ViewsFlushed(this.count);
 }
 
+/// One or more pending favorite add/remove actions were synced after reconnect.
+class FavoritesFlushed extends QueueEvent {
+  final int count;
+  const FavoritesFlushed(this.count);
+}
+
 /// Application-wide event bus for the offline queues.
 ///
 /// ## Why a custom Stream instead of Provider / ChangeNotifier?
