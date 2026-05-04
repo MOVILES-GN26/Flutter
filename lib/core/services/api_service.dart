@@ -722,6 +722,25 @@ class ApiService {
     }
   }
 
+  /// Fetches the authenticated user's own profile via GET /users/me.
+  /// Returns the raw JSON map or null on failure.
+  Future<Map<String, dynamic>?> getMe() async {
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token == null) return null;
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usersEndpoint}/me'),
+        headers: ApiConfig.authHeaders(token),
+      ).timeout(ApiConfig.connectionTimeout);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+    } catch (e) {
+      debugPrint('[getMe] exception: $e');
+    }
+    return null;
+  }
+
   /// Updates the authenticated user's profile via PATCH /users/me.
   Future<bool> updateProfile({
     required String firstName,

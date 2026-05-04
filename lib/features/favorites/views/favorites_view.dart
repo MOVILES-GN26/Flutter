@@ -229,28 +229,34 @@ class _FavoriteCard extends StatelessWidget {
                     // Price + condition chip
                     Row(
                       children: [
-                        Text(
-                          '\$${item.price.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF8B7E3B),
+                        Flexible(
+                          child: Text(
+                            '\$${item.price.toStringAsFixed(0)}',
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF8B7E3B),
+                            ),
                           ),
                         ),
                         if (item.condition != null &&
                             item.condition!.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF5ECCF),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              item.condition!,
-                              style: const TextStyle(
-                                  fontSize: 11, color: Color(0xFF8B7E3B)),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5ECCF),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                item.condition!,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 11, color: Color(0xFF8B7E3B)),
+                              ),
                             ),
                           ),
                         ],
