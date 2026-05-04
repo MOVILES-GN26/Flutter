@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/models/pending_post.dart';
@@ -22,12 +24,28 @@ class PostViewModel extends ChangeNotifier {
   bool _storesLoaded = false;
   String? _selectedStoreId; // null = Personal Profile
 
+  // ── Battery-triggered draft ───────────────────────────────────────────
+  final Battery _battery = Battery();
+  Timer? _batteryPollTimer;
+  bool _hasDraft = false;
+
+  // Mirror of the live form values — updated by the View via
+  // [notifyFormState] so the battery monitor can snapshot them.
+  String _formTitle = '';
+  String _formDescription = '';
+  String _formCategory = '';
+  String _formBuilding = '';
+  String _formPrice = '';
+  String _formCondition = '';
+
   PostViewModel() {
     // Pre-select the user's last-used store so they don't have to pick it
     // every time they open the Post screen.
     _selectedStoreId = PreferencesService.instance.defaultStoreId;
     // Best-effort recovery of draft images from a previous session.
     _restoreDraftImages();
+    // Check whether a text draft was stored from a previous low-battery event.
+    _hasDraft = PreferencesService.instance.hasPostDraft;
   }
 
   /// Restore any images left behind in the drafts folder (e.g. the user
@@ -51,6 +69,88 @@ class PostViewModel extends ChangeNotifier {
   List<Map<String, dynamic>> get stores => List.unmodifiable(_stores);
   bool get storesLoaded => _storesLoaded;
   String? get selectedStoreId => _selectedStoreId;
+
+  /// True when there is a battery-saved text draft waiting to be restored.
+  bool get hasDraft => _hasDraft;
+
+  /// Returns the stored draft fields (all strings, may be empty).
+  Map<String, String?> get savedDraft =>
+      PreferencesService.instance.loadPostDraft();
+
+  // ── Form state mirroring ──────────────────────────────────────────────
+
+  /// Called by the View on every field change so the battery monitor always
+  /// has an up-to-date snapshot without the ViewModel depending on controllers.
+  void notifyFormState({
+    String? title,
+    String? description,
+    String? category,
+    String? building,
+    String? price,
+    String? condition,
+  }) {
+    if (title != null) _formTitle = title;
+    if (description != null) _formDescription = description;
+    if (category != null) _formCategory = category;
+    if (building != null) _formBuilding = building;
+    if (price != null) _formPrice = price;
+    if (condition != null) _formCondition = condition;
+  }
+
+  // ── Battery monitor ───────────────────────────────────────────────────
+
+  /// Start polling battery level.  Called when the Post screen becomes active.
+  void startBatteryMonitor() {
+    _batteryPollTimer?.cancel();
+    // Check immediately and then every 30 seconds.
+    _doBatteryCheck();
+    _batteryPollTimer =
+        Timer.periodic(const Duration(seconds: 30), (_) => _doBatteryCheck());
+  }
+
+  /// Stop polling.  Called when the Post screen is disposed.
+  void stopBatteryMonitor() {
+    _batteryPollTimer?.cancel();
+    _batteryPollTimer = null;
+  }
+
+  Future<void> _doBatteryCheck() async {
+    try {
+      final level = await _battery.batteryLevel;
+      if (level < 15 && _formHasContent()) {
+        await _autoSaveDraft();
+      }
+    } catch (e) {
+      // battery_plus may throw on unsupported platforms — ignore silently.
+      debugPrint('[PostViewModel] battery check failed: $e');
+    }
+  }
+
+  bool _formHasContent() =>
+      _formTitle.trim().isNotEmpty || _formDescription.trim().isNotEmpty;
+
+  Future<void> _autoSaveDraft() async {
+    await PreferencesService.instance.savePostDraft(
+      title: _formTitle,
+      description: _formDescription,
+      category: _formCategory,
+      building: _formBuilding,
+      price: _formPrice,
+      condition: _formCondition,
+    );
+    if (!_hasDraft) {
+      _hasDraft = true;
+      notifyListeners();
+    }
+    debugPrint('[PostViewModel] Low-battery draft saved.');
+  }
+
+  /// Permanently discard the stored draft.
+  Future<void> clearDraft() async {
+    await PreferencesService.instance.clearPostDraft();
+    _hasDraft = false;
+    notifyListeners();
+  }
 
   void selectStore(String? storeId) {
     _selectedStoreId = storeId;
@@ -151,6 +251,9 @@ class PostViewModel extends ChangeNotifier {
         for (final f in List<File>.from(_images)) {
           await FileStorageService.deletePostDraft(f);
         }
+        // Also clear any battery-triggered text draft.
+        await PreferencesService.instance.clearPostDraft();
+        _hasDraft = false;
       } else {
         _errorMessage = 'Could not publish item. Please try again.';
         _status = PostStatus.error;
@@ -263,6 +366,15 @@ class PostViewModel extends ChangeNotifier {
     _errorMessage = null;
     _images.clear();
     _selectedStoreId = PreferencesService.instance.defaultStoreId;
+    // Clear in-memory form mirrors (the draft in prefs is kept intact —
+    // it will be offered for restore on the next Post session).
+    _formTitle = '';
+    _formDescription = '';
+    _formCategory = '';
+    _formBuilding = '';
+    _formPrice = '';
+    _formCondition = '';
+    stopBatteryMonitor();
     notifyListeners();
   }
 
@@ -276,6 +388,14 @@ class PostViewModel extends ChangeNotifier {
     _stores = const [];
     _storesLoaded = false;
     _selectedStoreId = null;
+    _formTitle = '';
+    _formDescription = '';
+    _formCategory = '';
+    _formBuilding = '';
+    _formPrice = '';
+    _formCondition = '';
+    _hasDraft = false;
+    stopBatteryMonitor();
     notifyListeners();
   }
 }
