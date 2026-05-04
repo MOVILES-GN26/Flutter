@@ -252,6 +252,24 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             color: Color(0xFF8B7E3B),
                           ),
                         ),
+                        const SizedBox(height: 8),
+
+                        // ── Category ──
+                        if (widget.item.category.trim().isNotEmpty)
+                          Row(
+                            children: [
+                              const Icon(Icons.category_outlined,
+                                  size: 16, color: Color(0xFF8B7E3B)),
+                              const SizedBox(width: 6),
+                              Text(
+                                widget.item.category,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF96914F),
+                                ),
+                              ),
+                            ],
+                          ),
                         const SizedBox(height: 20),
 
                         // ── Seller Information ──
