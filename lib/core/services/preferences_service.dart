@@ -25,6 +25,15 @@ class PreferencesService {
   static const String _kLastKnownLng = 'last_known_lng';
   static const String _kLastKnownLocationAt = 'last_known_location_at';
 
+  // Post text-draft (battery-triggered auto-save) keys
+  static const String _kPostDraftTitle = 'post_draft_title';
+  static const String _kPostDraftDescription = 'post_draft_description';
+  static const String _kPostDraftCategory = 'post_draft_category';
+  static const String _kPostDraftBuilding = 'post_draft_building';
+  static const String _kPostDraftPrice = 'post_draft_price';
+  static const String _kPostDraftCondition = 'post_draft_condition';
+  static const String _kPostDraftSavedAt = 'post_draft_saved_at';
+
   /// Initialize the singleton. Safe to call multiple times.
   static Future<void> init() async {
     if (_instance != null) return;
@@ -122,11 +131,59 @@ class PreferencesService {
     ]);
   }
 
+  // ── Post text draft (battery-triggered auto-save) ─────────────────────
+
+  /// Returns true if a non-empty draft is currently stored.
+  bool get hasPostDraft => _prefs.containsKey(_kPostDraftTitle);
+
+  /// Returns the last saved draft fields.  Callers should check [hasPostDraft]
+  /// before calling this; all values may be null if no draft exists.
+  Map<String, String?> loadPostDraft() => {
+        'title': _prefs.getString(_kPostDraftTitle),
+        'description': _prefs.getString(_kPostDraftDescription),
+        'category': _prefs.getString(_kPostDraftCategory),
+        'building': _prefs.getString(_kPostDraftBuilding),
+        'price': _prefs.getString(_kPostDraftPrice),
+        'condition': _prefs.getString(_kPostDraftCondition),
+        'savedAt': _prefs.getString(_kPostDraftSavedAt),
+      };
+
+  Future<void> savePostDraft({
+    required String title,
+    required String description,
+    required String category,
+    required String building,
+    required String price,
+    required String condition,
+  }) async {
+    await Future.wait([
+      _prefs.setString(_kPostDraftTitle, title),
+      _prefs.setString(_kPostDraftDescription, description),
+      _prefs.setString(_kPostDraftCategory, category),
+      _prefs.setString(_kPostDraftBuilding, building),
+      _prefs.setString(_kPostDraftPrice, price),
+      _prefs.setString(_kPostDraftCondition, condition),
+      _prefs.setString(
+          _kPostDraftSavedAt, DateTime.now().toIso8601String()),
+    ]);
+  }
+
+  Future<void> clearPostDraft() => Future.wait([
+        _prefs.remove(_kPostDraftTitle),
+        _prefs.remove(_kPostDraftDescription),
+        _prefs.remove(_kPostDraftCategory),
+        _prefs.remove(_kPostDraftBuilding),
+        _prefs.remove(_kPostDraftPrice),
+        _prefs.remove(_kPostDraftCondition),
+        _prefs.remove(_kPostDraftSavedAt),
+      ]);
+
   // ── Session cleanup ───────────────────────────────────────────────────
 
   /// Clears preferences that belong to the logged-in user:
   ///   * last-used catalog filters (could reveal prior user's browsing)
   ///   * default "post as" store id (tied to the user's stores)
+  ///   * any in-progress post draft
   ///
   /// Device-scoped preferences — theme mode, onboarding completion — are
   /// deliberately preserved across account changes.
@@ -136,6 +193,7 @@ class PreferencesService {
       _prefs.remove(_kLastCatalogCondition),
       _prefs.remove(_kLastCatalogPriceSort),
       _prefs.remove(_kDefaultStoreId),
+      clearPostDraft(),
     ]);
   }
 

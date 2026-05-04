@@ -24,11 +24,25 @@ class _PostViewState extends State<PostView> {
   String? _selectedBuilding;
   String? _selectedCondition;
 
+  // References to the internal controllers owned by the Autocomplete widgets.
+  // Captured in fieldViewBuilder so we can programmatically set text on restore.
+  TextEditingController? _categoryController;
+  TextEditingController? _buildingController;
+
+  // Whether we already offered to restore the draft this session.
+  bool _draftOfferShown = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PostViewModel>().loadStores();
+      final vm = context.read<PostViewModel>();
+      vm.loadStores();
+      vm.startBatteryMonitor();
+      if (vm.hasDraft && !_draftOfferShown) {
+        _draftOfferShown = true;
+        _showDraftRestoreBanner(vm);
+      }
     });
   }
 
@@ -37,7 +51,117 @@ class _PostViewState extends State<PostView> {
     _titleController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    // Read without listening — safe in dispose.
+    context.read<PostViewModel>().stopBatteryMonitor();
     super.dispose();
+  }
+
+  /// Shows a bottom-sheet banner letting the user restore the saved draft.
+  void _showDraftRestoreBanner(PostViewModel vm) {
+    final draft = vm.savedDraft;
+    final savedAt = draft['savedAt'];
+    final timeLabel = savedAt != null
+        ? _formatDraftTime(DateTime.tryParse(savedAt))
+        : 'previously';
+
+    showModalBottomSheet(
+      context: context,
+      isDismissible: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.battery_alert, color: Color(0xFF8B7E3B)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Draft saved $timeLabel',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Your battery was low while you were filling out a post. '
+              'Would you like to restore your progress?',
+              style: TextStyle(fontSize: 14, height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      vm.clearDraft();
+                    },
+                    child: const Text('Discard'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _applyDraft(draft);
+                    },
+                    child: const Text('Restore'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDraftTime(DateTime? dt) {
+    if (dt == null) return 'previously';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  /// Fills every form field with the values from [draft].
+  void _applyDraft(Map<String, String?> draft) {
+    _titleController.text = draft['title'] ?? '';
+    _descriptionController.text = draft['description'] ?? '';
+    _priceController.text = draft['price'] ?? '';
+    // Autocomplete controllers are captured lazily — if they are already
+    // mounted (post frame), set them directly; otherwise schedule it.
+    void applyAutoComplete() {
+      _categoryController?.text = draft['category'] ?? '';
+      _buildingController?.text = draft['building'] ?? '';
+    }
+    setState(() {
+      _selectedCategory = draft['category'];
+      _selectedBuilding = draft['building'];
+      _selectedCondition = draft['condition'];
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => applyAutoComplete());
+    // Also update ViewModel mirrors so the draft immediately reflects current form.
+    context.read<PostViewModel>().notifyFormState(
+          title: draft['title'] ?? '',
+          description: draft['description'] ?? '',
+          category: draft['category'] ?? '',
+          building: draft['building'] ?? '',
+          price: draft['price'] ?? '',
+          condition: draft['condition'] ?? '',
+        );
   }
 
   void _handlePublish(PostViewModel vm) {
@@ -242,6 +366,8 @@ class _PostViewState extends State<PostView> {
                       controller: _titleController,
                       maxLength: 50,
                       textCapitalization: TextCapitalization.sentences,
+                      onChanged: (v) =>
+                          context.read<PostViewModel>().notifyFormState(title: v),
                       inputFormatters: [
                         FilteringTextInputFormatter.deny(
                           RegExp(r'[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FE0F}]', unicode: true),
@@ -269,6 +395,9 @@ class _PostViewState extends State<PostView> {
                       maxLength: 200,
                       maxLines: 4,
                       textCapitalization: TextCapitalization.sentences,
+                      onChanged: (v) => context
+                          .read<PostViewModel>()
+                          .notifyFormState(description: v),
                       inputFormatters: [
                         FilteringTextInputFormatter.deny(
                           RegExp(r'[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FE0F}]', unicode: true),
@@ -307,12 +436,15 @@ class _PostViewState extends State<PostView> {
                           setState(() => _selectedCategory = v),
                       fieldViewBuilder:
                           (context, controller, focusNode, onSubmitted) {
+                        _categoryController = controller; // capture for draft restore
                         return TextFormField(
                           controller: controller,
                           focusNode: focusNode,
                           maxLength: 50,
+                          onChanged: (v) => context
+                              .read<PostViewModel>()
+                              .notifyFormState(category: v),
                           decoration: InputDecoration(
-                            hintText: 'Category',
                             counterText: '',
                             suffixIcon: Icon(Icons.arrow_drop_down,
                                 color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
@@ -384,9 +516,13 @@ class _PostViewState extends State<PostView> {
                       children: conditionOptions.map((opt) {
                         final isSelected = _selectedCondition == opt;
                         return GestureDetector(
-                          onTap: () => setState(
-                              () => _selectedCondition =
-                                  isSelected ? null : opt),
+                          onTap: () {
+                            final next = isSelected ? null : opt;
+                            setState(() => _selectedCondition = next);
+                            context
+                                .read<PostViewModel>()
+                                .notifyFormState(condition: next ?? '');
+                          },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
@@ -435,10 +571,14 @@ class _PostViewState extends State<PostView> {
                           setState(() => _selectedBuilding = v),
                       fieldViewBuilder:
                           (context, controller, focusNode, onSubmitted) {
+                        _buildingController = controller; // capture for draft restore
                         return TextFormField(
                           controller: controller,
                           focusNode: focusNode,
                           maxLength: 120,
+                          onChanged: (v) => context
+                              .read<PostViewModel>()
+                              .notifyFormState(building: v),
                           decoration: InputDecoration(
                             hintText: 'Building Location',
                             counterText: '',
@@ -502,6 +642,8 @@ class _PostViewState extends State<PostView> {
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
                       maxLength: 12,
+                      onChanged: (v) =>
+                          context.read<PostViewModel>().notifyFormState(price: v),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(
                             RegExp(r'^\d+\.?\d{0,2}')),
